@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<body>
+WebWorker Test
+<hr>
+<button id="btn" onclick="javascript:run();">start</btn>
+<script src="../dist/timi-worker.js"></script>
+<script>
+
+window.Worker = null;
+
+window.run = function(){
+
+    //主页面
+    // console.log('worker开始创建');
+    const worker = new TimiWorker('./ww.js');
+    // console.log('worker创建结束');
+
+    worker.postMessage(111);
+    worker.postMessage(222);
+
+    //消息监听
+    worker.onmessage = function(evt){
+        console.debug(`主页面收到消息:${evt.data}`);
+    }
+
+    worker.addEventListener('message', function(evt){
+        console.debug(`主页面收到消息---:${evt.data}`);
+    })
+    
+    worker.onerror = function(err){
+        console.log(`worker发生错误:`, err);
+    };
+
+    setTimeout(function(){
+         worker.postMessage(333);
+    }, 2000);
+
+    setTimeout(function(){
+         worker.terminate();
+    }, 8000);
+};
+</script>
+</body>
+</html>

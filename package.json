@@ -1,0 +1,10 @@
+{
+  "name": "timi-worker",
+  "version": "0.0.1",
+  "description": "worker-polyfill",
+  "devDependencies": {
+    "ts-loader": "^2.0.3",
+    "typescript": "^2.2.2",
+    "webpack": "^1.12.9"
+  }
+}
