@@ -16,6 +16,10 @@ export class FakeContext {
         this.fakeWorker = fakeWorker;
     }
 
+    importScripts(){
+        
+    }
+
     postMessage(msg = null) {
         const evt: WorkerEvent = new WorkerEvent(msg);
         this.fakeWorker._boardMsgQueueToMain([evt]);

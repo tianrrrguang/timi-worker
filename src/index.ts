@@ -7,6 +7,9 @@ class TimiWorker {
 
     private worker: any;
 
+    static forceFake = false;
+    static DEBUG = false;
+
     set onmessage(val) {
         this.worker.onmessage = val;
     }
@@ -50,10 +53,12 @@ class TimiWorker {
         catch (error) {
             this.isNativeWorker = false;
         }
-        if (this.isNativeWorker) {
+        if (this.isNativeWorker && !TimiWorker.forceFake) {
+            TimiWorker.DEBUG && console.warn('TimiWorker(native) ready!');
             this.worker = new Worker(this.jspath);
         }
         else {
+             TimiWorker.DEBUG && console.warn('TimiWorker(fake) ready!');
             this.worker = new FakeWorker(this.jspath);
         }
     }

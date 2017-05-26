@@ -106925,8 +106925,11 @@ catch (err) {
 
 }
 
+// importScripts('./ww2.js');
+console.warn(this);
+
 //线程1 - ww.js
-console.warn('线程1进入');
+console.warn('线程1进入(0)');
 
 self.addEventListener('error', function (err) {
 	console.warn(err);
@@ -106948,11 +106951,12 @@ onmessage = function(evt){
 
 self.postMessage('线程1进入(1)');
 
-setInterval(function(){
+var x = setInterval(function(){
 	console.warn(performance.now());
 	self.postMessage(performance.now());
 }, 3000);
 
-function aabb(){
-	throw new Error('This is not an error. This is just to abort javascript');
-}
+self.onexit = function(){
+	clearInterval(x);
+	throw 'exit';
+};

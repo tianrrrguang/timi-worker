@@ -1,45 +1,168 @@
 <!doctype html>
 <html>
+
+<head>
+    <title>TimiWorker测试</title>
+    <link href="./style/main.css" rel="stylesheet">
+</head>
+
 <body>
-WebWorker Test
-<hr>
-<button id="btn" onclick="javascript:run();">start</btn>
+    <div id="env" class="unit">
+        <input type="radio" value="native" v-model="env">
+        <label>NativeWorker</label>
+        <input type="radio" value="fake" v-model="env">
+        <label>FakeWorker</label>
+    </div>
+    <div id="message" class="unit">
+        [线程]onmessage=...
+        <button v-on:click="run">开始</button>
+    </div>
+    <div id="self_message" class="unit">
+        [线程]self.onmessage=...
+        <button v-on:click="run">开始</button>
+    </div>
+    <div id="addEventListener_message" class="unit">
+        [线程]addEventListener('message', ...)
+        <button v-on:click="run">开始</button>
+    </div>
+    <div id="self_addEventListener_message" class="unit">
+        [线程]self.addEventListener('message', ...)
+        <button v-on:click="run">开始</button>
+    </div>
+    <div id="main_onmessage" class="unit">
+        [线程]postMessage | [主页面]onmessage
+        <button v-on:click="run">开始</button>
+    </div>
+    <div id="main_addEventListener" class="unit">
+        [线程]postMessage | [主页面]addEventListener
+        <button v-on:click="run">开始</button>
+    </div>
+</body>
+
+</html>
+<script src="./lib/vue.js"></script>
+<script src="./lib/tpl.js"></script>
 <script src="../dist/timi-worker.js"></script>
 <script>
 
-window.Worker = null;
+    TimiWorker.DEBUG = true;
+    TimiWorker.forceFake = true;
 
-window.run = function(){
-
-    //主页面
-    // console.log('worker开始创建');
-    const worker = new TimiWorker('./ww.js');
-    // console.log('worker创建结束');
-
-    worker.postMessage(111);
-    worker.postMessage(222);
-
-    //消息监听
-    worker.onmessage = function(evt){
-        console.debug(`主页面收到消息:${evt.data}`);
-    }
-
-    worker.addEventListener('message', function(evt){
-        console.debug(`主页面收到消息---:${evt.data}`);
+    //环境
+    new Vue({
+        el: '#env',
+        data: {
+            env: 'fake'
+        },
+        watch: {
+            env: function (val) {
+                switch (val) {
+                    case 'fake':
+                        TimiWorker.forceFake = true;
+                        break;
+                    case 'native':
+                        if (window && window['Worker']) {
+                            TimiWorker.forceFake = false;
+                        }
+                        else {
+                            console.error('您的运行环境不支持NativeWorker!');
+                            this.env = 'fake';
+                        }
+                }
+            }
+        }
     })
-    
-    worker.onerror = function(err){
-        console.log(`worker发生错误:`, err);
-    };
 
-    setTimeout(function(){
-         worker.postMessage(333);
-    }, 2000);
+    //线程onmessage
+    new Vue({
+        el: '#message',
+        data: {
 
-    setTimeout(function(){
-         worker.terminate();
-    }, 8000);
-};
+        },
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w1.js');
+                tpl[1](worker);
+            }
+        }
+    });
+
+    //线程self.onmessage
+    new Vue({
+        el: '#self_message',
+        data: {
+
+        },
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w2.js');
+                tpl[1](worker);
+            }
+        }
+    });
+
+    //线程addEventListener
+    new Vue({
+        el: '#addEventListener_message',
+        data: {
+
+        },
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w3.js');
+                tpl[1](worker);
+            }
+        }
+    });
+
+    //线程self.addEventListener
+    new Vue({
+        el: '#self_addEventListener_message',
+        data: {
+
+        },
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w4.js');
+                tpl[1](worker);
+            }
+        }
+    });
+
+    //主页面onmessage+线程postMessage
+    new Vue({
+        el: '#main_onmessage',
+        data: {},
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w5.js');
+                worker.onmessage = function(evt){
+                    console.log('[主页面]收到消息: '+evt.data);
+                };
+                tpl[1](worker);
+            }
+        }
+    });
+
+    //主页面addEventListener+线程postMessage
+    new Vue({
+        el: '#main_addEventListener',
+        data: {},
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w5.js');
+                worker.addEventListener('message', function(evt){
+                    console.log('[主页面]收到消息: '+evt.data);
+                });
+                tpl[1](worker);
+            }
+        }
+    });
+
 </script>
-</body>
-</html>

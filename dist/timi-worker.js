@@ -113,15 +113,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	        catch (error) {
 	            this.isNativeWorker = false;
 	        }
-	        if (this.isNativeWorker) {
+	        if (this.isNativeWorker && !TimiWorker.forceFake) {
+	            TimiWorker.DEBUG && console.warn('TimiWorker(native) ready!');
 	            this.worker = new Worker(this.jspath);
 	        }
 	        else {
+	            TimiWorker.DEBUG && console.warn('TimiWorker(fake) ready!');
 	            this.worker = new fake_worker_1.FakeWorker(this.jspath);
 	        }
 	    };
 	    return TimiWorker;
 	}());
+	TimiWorker.forceFake = false;
+	TimiWorker.DEBUG = false;
 	module.exports = TimiWorker;
 
 
@@ -130,11 +134,17 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, exports, __webpack_require__) {
 
 	Object.defineProperty(exports, "__esModule", { value: true });
+	var declare_1 = __webpack_require__(5);
 	var worker_event_1 = __webpack_require__(2);
 	var fake_context_1 = __webpack_require__(3);
+	var utils_1 = __webpack_require__(4);
 	var FakeWorker = (function () {
 	    //构造函数
 	    function FakeWorker(jspath) {
+	        /**
+	         * 当前线程状态
+	         */
+	        this.stat = declare_1.Stat.IDLE;
 	        /**
 	         * 线程js文件路径
 	         */
@@ -160,23 +170,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        /**
 	         * 主页面的消息监听函数列队
 	         */
-	        this.MainListenerList = FakeWorker.defaultListenerList();
+	        this.MainListenerList = utils_1.defaultListenerList();
 	        /**
 	         * fake线程的消息监听函数队列
 	         */
-	        this.ThreadListenerList = FakeWorker.defaultListenerList();
+	        this.ThreadListenerList = utils_1.defaultListenerList();
 	        this.jspath = jspath;
 	        this.fakeContext = new fake_context_1.FakeContext(this);
 	        this._loadJsCode();
 	    }
-	    FakeWorker.defaultListenerList = function () {
-	        return {
-	            'onmessage': null,
-	            'onerror': null,
-	            'message': [],
-	            'error': []
-	        };
-	    };
 	    Object.defineProperty(FakeWorker.prototype, "onmessage", {
 	        /**
 	         * 主页面通过xx.onmessage方法设定消息监听函数
@@ -193,15 +195,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	     */
 	    FakeWorker.prototype.postMessage = function (data) {
 	        var evt = new worker_event_1.WorkerEvent(data);
-	        this.MainMsgQueue.push(evt);
+	        if (this.stat != declare_1.Stat.READY) {
+	            this.MainMsgQueue.push(evt);
+	        }
 	        this._boardMsgQueueToThread([evt]);
 	    };
 	    /**
 	     * 终止fake线程
 	     */
 	    FakeWorker.prototype.terminate = function () {
-	        this.MainListenerList = FakeWorker.defaultListenerList();
-	        this.ThreadListenerList = FakeWorker.defaultListenerList();
+	        this.ThreadListenerList.onexit && this.ThreadListenerList.onexit();
+	        this.MainListenerList = utils_1.defaultListenerList();
+	        this.ThreadListenerList = utils_1.defaultListenerList();
 	    };
 	    /**
 	     * 主页面增加监听函数
@@ -213,12 +218,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	        catch (error) {
 	            console.error("\u65E0\u6548\u7684\u4E8B\u4EF6\u540D\u79F0: " + eventName);
 	        }
-	    };
-	    /**
-	     * 清空消息队列
-	     */
-	    FakeWorker.prototype.clearMessageQueue = function () {
-	        this.MainMsgQueue = [];
 	    };
 	    /**
 	     * 异步加载js代码（以文本形式）
@@ -242,18 +241,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // xhr.upload.onprogress = function (e) { };
 	        //发送数据
 	        xhr.send(null);
+	        //改变状态
+	        this.stat = declare_1.Stat.LOADING;
 	    };
 	    /**
 	     * 在fakeContext上下文环境下执行fake线程js代码
 	     * 在执行完毕之后需要再次执行消息广播
 	     */
 	    FakeWorker.prototype._evalJsCodeWithContext = function () {
+	        // const reg = /importScripts\((.+)\)/g;
+	        // var arr;
+	        // while((arr = reg.exec(this.jscode)) !=null){
+	        //     console.warn(arr);
+	        // }
+	        // const self = this;
+	        // (function () {
+	        //     eval(self.jscode);
+	        // }).call(self.fakeContext);
 	        var context = this.fakeContext;
-	        var code = "(function(){with(context){" + this.jscode + "};}())";
+	        var code = "(function(){with(context){" + this.jscode + "};}).call(context)";
 	        this.fakeWorker = eval(code);
-	        for (var v in this.fakeContext) {
-	            console.warn(v);
-	        }
 	        this._boardMsgQueueToThread(this.MainMsgQueue);
 	    };
 	    /**
@@ -333,6 +340,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        enumerable: true,
 	        configurable: true
 	    });
+	    FakeContext.prototype.importScripts = function () {
+	    };
 	    FakeContext.prototype.postMessage = function (msg) {
 	        if (msg === void 0) { msg = null; }
 	        var evt = new worker_event_1.WorkerEvent(msg);
@@ -349,6 +358,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return FakeContext;
 	}());
 	exports.FakeContext = FakeContext;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+	Object.defineProperty(exports, "__esModule", { value: true });
+	function defaultListenerList() {
+	    return {
+	        onmessage: null,
+	        onerror: null,
+	        onexit: null,
+	        message: [],
+	        error: []
+	    };
+	}
+	exports.defaultListenerList = defaultListenerList;
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
+
+	Object.defineProperty(exports, "__esModule", { value: true });
+	var Stat;
+	(function (Stat) {
+	    Stat[Stat["IDLE"] = 0] = "IDLE";
+	    Stat[Stat["LOADING"] = 1] = "LOADING";
+	    Stat[Stat["IMPORTING"] = 2] = "IMPORTING";
+	    Stat[Stat["READY"] = 3] = "READY";
+	})(Stat = exports.Stat || (exports.Stat = {}));
 
 
 /***/ })

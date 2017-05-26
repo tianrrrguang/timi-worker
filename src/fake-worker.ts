@@ -1,16 +1,14 @@
+import { Stat } from './declare';
 import { WorkerEvent } from './worker-event';
 import { FakeContext } from './fake-context';
+import { defaultListenerList } from './utils';
 
 export class FakeWorker {
 
-    static defaultListenerList() {
-        return {
-            'onmessage': null,
-            'onerror': null,
-            'message': [],
-            'error': []
-        };
-    }
+    /**
+     * 当前线程状态
+     */
+    private stat: Stat = Stat.IDLE;
 
     /**
      * 线程js文件路径
@@ -42,12 +40,12 @@ export class FakeWorker {
     /**
      * 主页面的消息监听函数列队
      */
-    public MainListenerList: any = FakeWorker.defaultListenerList();
+    public MainListenerList: any = defaultListenerList();
 
     /**
      * fake线程的消息监听函数队列
      */
-    public ThreadListenerList: any = FakeWorker.defaultListenerList();
+    public ThreadListenerList: any = defaultListenerList();
 
     //构造函数
     constructor(jspath) {
@@ -69,7 +67,9 @@ export class FakeWorker {
      */
     postMessage(data): void {
         const evt: WorkerEvent = new WorkerEvent(data);
-        this.MainMsgQueue.push(evt);
+        if (this.stat != Stat.READY) {
+            this.MainMsgQueue.push(evt);
+        }
         this._boardMsgQueueToThread([evt]);
     }
 
@@ -77,8 +77,9 @@ export class FakeWorker {
      * 终止fake线程
      */
     terminate(): void {
-        this.MainListenerList = FakeWorker.defaultListenerList();
-        this.ThreadListenerList = FakeWorker.defaultListenerList();
+        this.ThreadListenerList.onexit && this.ThreadListenerList.onexit();
+        this.MainListenerList = defaultListenerList();
+        this.ThreadListenerList = defaultListenerList();
     }
 
     /**
@@ -91,13 +92,6 @@ export class FakeWorker {
         catch (error) {
             console.error(`无效的事件名称: ${eventName}`);
         }
-    }
-
-    /**
-     * 清空消息队列
-     */
-    clearMessageQueue(): void {
-        this.MainMsgQueue = [];
     }
 
     /**
@@ -123,6 +117,8 @@ export class FakeWorker {
 
         //发送数据
         xhr.send(null);
+        //改变状态
+        this.stat = Stat.LOADING;
     }
 
     /**
@@ -130,12 +126,20 @@ export class FakeWorker {
      * 在执行完毕之后需要再次执行消息广播
      */
     private _evalJsCodeWithContext(): void {
+
+        // const reg = /importScripts\((.+)\)/g;
+        // var arr;
+        // while((arr = reg.exec(this.jscode)) !=null){
+        //     console.warn(arr);
+        // }
+        // const self = this;
+        // (function () {
+        //     eval(self.jscode);
+        // }).call(self.fakeContext);
+
         const context = this.fakeContext;
-        const code = `(function(){with(context){${this.jscode}};}())`;
+        const code = `(function(){with(context){${this.jscode}};}).call(context)`;
         this.fakeWorker = eval(code);
-        for (let v in this.fakeContext) {
-            console.warn(v);
-        }
         this._boardMsgQueueToThread(this.MainMsgQueue);
     }
 
