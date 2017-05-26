@@ -1,7 +1,8 @@
 import { Stat } from './declare';
 import { WorkerEvent } from './worker-event';
 import { FakeContext } from './fake-context';
-import { defaultListenerList } from './utils';
+import { defaultListenerList, resolve } from './utils';
+import * as async from './async';
 
 export class FakeWorker {
 
@@ -98,16 +99,24 @@ export class FakeWorker {
      * 异步加载js代码（以文本形式）
      */
     private _loadJsCode(): void {
-        const self = this;
+
+        this.stat = Stat.LOADING;
+        this._asyncLoadTxt(this.jspath, (txt)=>{
+            this.jscode = txt;
+            this._evalJsCodeWithContext();
+        });
+        
+    }
+
+    private _asyncLoadTxt(path: string, success: Function): void {
         const xhr = <any>(new XMLHttpRequest());
         xhr.responseType = "text";
-        xhr.open('GET', this.jspath, true);
+        xhr.open('GET', path, true);
         //注册相关事件回调处理函数
         xhr.onload = function (e) {
             if (this.readyState == 4) {
                 if (this.status == 200 || this.status == 304) {
-                    self.jscode = this.responseText;
-                    self._evalJsCodeWithContext();
+                    success(this.responseText);
                 }
             }
         };
@@ -117,8 +126,6 @@ export class FakeWorker {
 
         //发送数据
         xhr.send(null);
-        //改变状态
-        this.stat = Stat.LOADING;
     }
 
     /**
@@ -127,20 +134,28 @@ export class FakeWorker {
      */
     private _evalJsCodeWithContext(): void {
 
-        // const reg = /importScripts\((.+)\)/g;
-        // var arr;
-        // while((arr = reg.exec(this.jscode)) !=null){
-        //     console.warn(arr);
-        // }
-        // const self = this;
-        // (function () {
-        //     eval(self.jscode);
-        // }).call(self.fakeContext);
+        //找到直接importScripts
+        const importList: string[] = [];
+        const importCodeList: string[] = [];
+        const reg = /importScripts\(\s*[\'\"](.+\.js)[\'\"]\s*\)/g;
+        let arr;
+        while ((arr = reg.exec(this.jscode)) != null) {
+            importList.push(resolve(this.jspath, arr[1]));
+        }
+        async.eachSeries(importList, (p, cb) => {
+            this._asyncLoadTxt(p, (txt)=>{
+                importCodeList.push(txt);
+                cb(null);
+            });
+        }, (error, results) => {
+            const context = this.fakeContext;
+            const importCode = `\n\n${importCodeList.join('\n')}\n\n`;
+            const code = `(function(){with(context){${importCode}${this.jscode}};}).call(context)`;
+            console.warn(code);
+            this.fakeWorker = eval(code);
+            this._boardMsgQueueToThread(this.MainMsgQueue);
+        });
 
-        const context = this.fakeContext;
-        const code = `(function(){with(context){${this.jscode}};}).call(context)`;
-        this.fakeWorker = eval(code);
-        this._boardMsgQueueToThread(this.MainMsgQueue);
     }
 
     /**

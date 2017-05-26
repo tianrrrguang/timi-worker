@@ -37,6 +37,10 @@
         [线程]postMessage | [主页面]addEventListener
         <button v-on:click="run">开始</button>
     </div>
+    <div id="importScripts1" class="unit">
+        [线程]直接默认importScripts("...")
+        <button v-on:click="run">开始</button>
+    </div>
 </body>
 
 </html>
@@ -157,6 +161,22 @@
             run: function () {
                 tpl[0]();
                 const worker = new TimiWorker('./worker/w5.js');
+                worker.addEventListener('message', function(evt){
+                    console.log('[主页面]收到消息: '+evt.data);
+                });
+                tpl[1](worker);
+            }
+        }
+    });
+
+    //直接importScripts
+    new Vue({
+        el: '#importScripts1',
+        data: {},
+        methods: {
+            run: function () {
+                tpl[0]();
+                const worker = new TimiWorker('./worker/w6.js');
                 worker.addEventListener('message', function(evt){
                     console.log('[主页面]收到消息: '+evt.data);
                 });

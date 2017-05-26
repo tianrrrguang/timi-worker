@@ -138,6 +138,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var worker_event_1 = __webpack_require__(2);
 	var fake_context_1 = __webpack_require__(3);
 	var utils_1 = __webpack_require__(4);
+	var async = __webpack_require__(6);
 	var FakeWorker = (function () {
 	    //构造函数
 	    function FakeWorker(jspath) {
@@ -223,16 +224,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * 异步加载js代码（以文本形式）
 	     */
 	    FakeWorker.prototype._loadJsCode = function () {
-	        var self = this;
+	        var _this = this;
+	        this.stat = declare_1.Stat.LOADING;
+	        this._asyncLoadTxt(this.jspath, function (txt) {
+	            _this.jscode = txt;
+	            _this._evalJsCodeWithContext();
+	        });
+	    };
+	    FakeWorker.prototype._asyncLoadTxt = function (path, success) {
 	        var xhr = (new XMLHttpRequest());
 	        xhr.responseType = "text";
-	        xhr.open('GET', this.jspath, true);
+	        xhr.open('GET', path, true);
 	        //注册相关事件回调处理函数
 	        xhr.onload = function (e) {
 	            if (this.readyState == 4) {
 	                if (this.status == 200 || this.status == 304) {
-	                    self.jscode = this.responseText;
-	                    self._evalJsCodeWithContext();
+	                    success(this.responseText);
 	                }
 	            }
 	        };
@@ -241,27 +248,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // xhr.upload.onprogress = function (e) { };
 	        //发送数据
 	        xhr.send(null);
-	        //改变状态
-	        this.stat = declare_1.Stat.LOADING;
 	    };
 	    /**
 	     * 在fakeContext上下文环境下执行fake线程js代码
 	     * 在执行完毕之后需要再次执行消息广播
 	     */
 	    FakeWorker.prototype._evalJsCodeWithContext = function () {
-	        // const reg = /importScripts\((.+)\)/g;
-	        // var arr;
-	        // while((arr = reg.exec(this.jscode)) !=null){
-	        //     console.warn(arr);
-	        // }
-	        // const self = this;
-	        // (function () {
-	        //     eval(self.jscode);
-	        // }).call(self.fakeContext);
-	        var context = this.fakeContext;
-	        var code = "(function(){with(context){" + this.jscode + "};}).call(context)";
-	        this.fakeWorker = eval(code);
-	        this._boardMsgQueueToThread(this.MainMsgQueue);
+	        var _this = this;
+	        //找到直接importScripts
+	        var importList = [];
+	        var importCodeList = [];
+	        var reg = /importScripts\(\s*[\'\"](.+\.js)[\'\"]\s*\)/g;
+	        var arr;
+	        while ((arr = reg.exec(this.jscode)) != null) {
+	            importList.push(utils_1.resolve(this.jspath, arr[1]));
+	        }
+	        async.eachSeries(importList, function (p, cb) {
+	            _this._asyncLoadTxt(p, function (txt) {
+	                importCodeList.push(txt);
+	                cb(null);
+	            });
+	        }, function (error, results) {
+	            var context = _this.fakeContext;
+	            var importCode = "\n\n" + importCodeList.join('\n') + "\n\n";
+	            var code = "(function(){with(context){" + importCode + _this.jscode + "};}).call(context)";
+	            console.warn(code);
+	            _this.fakeWorker = eval(code);
+	            _this._boardMsgQueueToThread(_this.MainMsgQueue);
+	        });
 	    };
 	    /**
 	     * 向fake线程广播消息
@@ -375,6 +389,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	}
 	exports.defaultListenerList = defaultListenerList;
+	function resolve(from, to) {
+	    var arrFrom = from.split('/');
+	    var arrTo = to.split('/');
+	    var prev = 1;
+	    for (var i = 0; i < arrTo.length; i++) {
+	        if (arrTo[i] == '..') {
+	            prev++;
+	        }
+	    }
+	    arrFrom.length -= prev;
+	    arrFrom.push(arrTo[arrTo.length - 1]);
+	    return arrFrom.join('/');
+	}
+	exports.resolve = resolve;
 
 
 /***/ }),
@@ -389,6 +417,143 @@ return /******/ (function(modules) { // webpackBootstrap
 	    Stat[Stat["IMPORTING"] = 2] = "IMPORTING";
 	    Stat[Stat["READY"] = 3] = "READY";
 	})(Stat = exports.Stat || (exports.Stat = {}));
+
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports) {
+
+	// root is global on the server, and window in the browser
+	var root = window;
+	// cached for performance
+	function noop() { }
+	var ObjectKeys = Object.keys;
+	// isArray and isObject functions
+	function isArray(arr) {
+	    return (Array.isArray(arr) && arr.length > 0);
+	}
+	function isObject(obj) {
+	    return (typeof obj === "object" && ObjectKeys(obj).length > 0);
+	}
+	function doEach(arr, iterator) {
+	    var i;
+	    var length = arr.length;
+	    for (i = 0; i < length; i++) {
+	        iterator(arr[i]);
+	    }
+	}
+	// https://github.com/caolan/async
+	function doOnce(fn) {
+	    var called = false;
+	    return function () {
+	        if (called)
+	            throw new Error("Callback already called.");
+	        called = true;
+	        fn.apply(root, arguments);
+	    };
+	}
+	// https://github.com/caolan/async
+	function _doOnce(fn) {
+	    var called = false;
+	    return function () {
+	        if (called)
+	            return;
+	        called = true;
+	        fn.apply(this, arguments);
+	    };
+	}
+	var async = {
+	    // runs the task on every item in the array at once
+	    each: function (arr, iterator, callback) {
+	        callback = _doOnce(callback || noop);
+	        var amount = arr.length;
+	        if (!isArray(arr))
+	            return callback();
+	        var completed = 0;
+	        doEach(arr, function (item) {
+	            iterator(item, doOnce(function (err) {
+	                if (err) {
+	                    callback(err);
+	                    callback = noop;
+	                }
+	                else {
+	                    completed++;
+	                    if (completed >= amount)
+	                        callback(null);
+	                }
+	            }));
+	        });
+	    },
+	    eachSeries: function (arr, iterator, callback) {
+	        callback = _doOnce(callback || noop);
+	        var amount = arr.length;
+	        if (!isArray(arr))
+	            return callback();
+	        var completed = 0;
+	        var iterate = function () {
+	            iterator(arr[completed], doOnce(function (err) {
+	                if (err) {
+	                    callback(err);
+	                    callback = noop;
+	                }
+	                else {
+	                    completed++;
+	                    if (completed < amount) {
+	                        iterate();
+	                    }
+	                    else {
+	                        callback(null);
+	                    }
+	                }
+	            }));
+	        };
+	        iterate();
+	    },
+	    // can accept an object or array
+	    // will return an object or array of results in the correct order
+	    parallel: function (tasks, callback) {
+	        var keys;
+	        var length;
+	        var i;
+	        var results;
+	        var kind;
+	        var updated_tasks = [];
+	        var is_object;
+	        var counter = 0;
+	        if (isArray(tasks)) {
+	            length = tasks.length;
+	            results = [];
+	        }
+	        else if (isObject(tasks)) {
+	            is_object = true;
+	            keys = ObjectKeys(tasks);
+	            length = keys.length;
+	            results = {};
+	        }
+	        else {
+	            return callback();
+	        }
+	        for (i = 0; i < length; i++) {
+	            if (is_object) {
+	                updated_tasks.push({ k: keys[i], t: tasks[keys[i]] });
+	            }
+	            else {
+	                updated_tasks.push({ k: i, t: tasks[i] });
+	            }
+	        }
+	        updated_tasks.forEach(function (task_object) {
+	            task_object.t(function (err, result) {
+	                if (err)
+	                    return callback(err);
+	                results[task_object.k] = result;
+	                counter++;
+	                if (counter == length)
+	                    callback(null, results);
+	            });
+	        });
+	    },
+	};
+	module.exports = async;
 
 
 /***/ })
