@@ -1,0 +1,13 @@
+{
+    "port": 3301,
+    "files": [
+        "./**/*.{html,htm,css,js}"
+    ],
+    "logLevel": "silent",
+    "server": {
+        "baseDir": "./",
+        "middleware": {
+            "0": null
+        }
+    }
+}

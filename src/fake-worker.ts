@@ -9,7 +9,7 @@ export class FakeWorker {
     /**
      * 当前线程状态
      */
-    private stat: Stat = Stat.IDLE;
+    private _stat: Stat = Stat.IDLE;
 
     /**
      * 线程js文件路径
@@ -25,10 +25,6 @@ export class FakeWorker {
      * fake线程的上下文
      */
     private fakeContext: FakeContext = null;
-
-    /**
-     * fake线程实例
-     */
     private fakeWorker: any = null;
 
     /**
@@ -37,6 +33,9 @@ export class FakeWorker {
      * 若fake线程使用importScripts，则也需要全量发送
      */
     private MainMsgQueue: WorkerEvent[] = [];
+
+    private importScriptsCache: any = {};
+    private importScriptsQueue: string[] = [];
 
     /**
      * 主页面的消息监听函数列队
@@ -63,6 +62,17 @@ export class FakeWorker {
         this.MainListenerList.onmessage = val;
     }
 
+    set stat(val) {
+        this._stat = val;
+        if (this._stat == Stat.READY) {
+            this._boardMsgQueueToThread(this.MainMsgQueue);
+        }
+    }
+
+    get stat() {
+        return this._stat;
+    }
+
     /**
      * 从主页面向fake线程传递消息
      */
@@ -71,7 +81,9 @@ export class FakeWorker {
         if (this.stat != Stat.READY) {
             this.MainMsgQueue.push(evt);
         }
-        this._boardMsgQueueToThread([evt]);
+        else {
+            this._boardMsgQueueToThread([evt]);
+        }
     }
 
     /**
@@ -95,20 +107,44 @@ export class FakeWorker {
         }
     }
 
+    _importScripts(jspath: string): void {
+        this.stat = Stat.LOADING;
+        const p = resolve(this.jspath, jspath);
+        this.importScriptsQueue.push(p);
+        this._importScriptsQueueList((codeStringList) => {
+            const context = this.fakeContext;
+            const worker = this.fakeWorker;
+
+            console.warn(codeStringList);
+
+            eval(`
+                (function(){
+                    console.error(1111);
+                    var my2 = 23;
+                    with(context){
+                        var my2 = 22;
+                    }
+                }).call(worker);
+            `);
+            this.stat = Stat.READY;
+            console.warn('ok');
+        });
+    }
+
     /**
      * 异步加载js代码（以文本形式）
      */
     private _loadJsCode(): void {
 
         this.stat = Stat.LOADING;
-        this._asyncLoadTxt(this.jspath, (txt)=>{
+        this._asyncLoadTxt(this.jspath, (txt) => {
             this.jscode = txt;
             this._evalJsCodeWithContext();
         });
-        
+
     }
 
-    private _asyncLoadTxt(path: string, success: Function): void {
+    private _asyncLoadTxt(path: string, success: Function, fail: Function = (() => { })): void {
         const xhr = <any>(new XMLHttpRequest());
         xhr.responseType = "text";
         xhr.open('GET', path, true);
@@ -120,12 +156,46 @@ export class FakeWorker {
                 }
             }
         };
-        // xhr.ontimeout = function (e) { };
-        // xhr.onerror = function (e) { };
-        // xhr.upload.onprogress = function (e) { };
+        xhr.ontimeout = function (e) {
+
+        };
+        xhr.onerror = function (e) {
+
+        };
 
         //发送数据
         xhr.send(null);
+    }
+
+    private _importScriptsQueueList(final: Function): void {
+        const codeStringList: string[] = [];
+        this._doImportScriptsQueueList((codeString) => {
+            if (codeString) {
+                codeStringList.push(codeString);
+            }
+            else if (false === codeString) {
+                final(codeStringList);
+            }
+        });
+    }
+
+    private _doImportScriptsQueueList(cb: Function): void {
+        if (this.importScriptsQueue.length) {
+            const jspath = this.importScriptsQueue.shift();
+            if (this.importScriptsCache[jspath]) {
+                cb('');
+            }
+            else {
+                this.importScriptsCache[jspath] = true;
+                this._asyncLoadTxt(jspath, (txt) => {
+                    cb(txt);
+                    this._doImportScriptsQueueList(cb);
+                });
+            }
+        }
+        else {
+            cb(false);
+        }
     }
 
     /**
@@ -135,25 +205,65 @@ export class FakeWorker {
     private _evalJsCodeWithContext(): void {
 
         //找到直接importScripts
-        const importList: string[] = [];
-        const importCodeList: string[] = [];
         const reg = /importScripts\(\s*[\'\"](.+\.js)[\'\"]\s*\)/g;
         let arr;
         while ((arr = reg.exec(this.jscode)) != null) {
-            importList.push(resolve(this.jspath, arr[1]));
+            this.importScriptsQueue.push(resolve(this.jspath, arr[1]));
         }
-        async.eachSeries(importList, (p, cb) => {
-            this._asyncLoadTxt(p, (txt)=>{
-                importCodeList.push(txt);
-                cb(null);
-            });
-        }, (error, results) => {
+        this._importScriptsQueueList((codeStringList) => {
             const context = this.fakeContext;
-            const importCode = `\n\n${importCodeList.join('\n')}\n\n`;
-            const code = `(function(){with(context){${importCode}${this.jscode}};}).call(context)`;
-            console.warn(code);
-            this.fakeWorker = eval(code);
-            this._boardMsgQueueToThread(this.MainMsgQueue);
+            const importCode = `\n\n${codeStringList.join('\n')}\n\n`;
+
+            // console.warn(importCode);
+            const script = document.createElement('script');
+            script.innerHTML = `
+                var a = 1;
+                setInterval(function(){
+                    console.warn(a, b);
+                }, 3000);
+            `; 
+
+            document.body.appendChild(script);
+
+            const script2 = document.createElement('script');
+            script2.innerHTML = `
+                window.b = 2;
+            `; 
+
+            setTimeout(function(){
+                document.body.appendChild(script2);
+            }, 5000);
+
+            setTimeout(function(){
+                document.body.removeChild(script);
+            }, 15000);
+            
+
+            // const code = `(function(){
+
+         
+                
+            //         var my2 = -1;
+            //         ${importCode}${this.jscode}
+                
+            //     return this;
+            // }).call(context)`;
+
+            // console.warn(code);
+
+            // const worker = this.fakeWorker;
+            // console.warn(worker);
+
+            // eval(`
+            //     (function(){
+            //         var my2 = 23;
+            //         with(context){
+            //             var my2 = 22;
+            //         }
+            //     }).call(worker);
+            // `);
+
+            this.stat = Stat.READY;
         });
 
     }

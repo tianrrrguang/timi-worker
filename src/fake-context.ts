@@ -4,9 +4,9 @@ export class FakeContext {
 
     private fakeWorker: any = null;
 
-    get self() {
-        return this;
-    }
+    // get self() {
+    //     return this;
+    // }
 
     set onmessage(val) {
         this.fakeWorker.ThreadListenerList.onmessage = val;

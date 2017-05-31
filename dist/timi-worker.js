@@ -134,18 +134,17 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, exports, __webpack_require__) {
 
 	Object.defineProperty(exports, "__esModule", { value: true });
-	var declare_1 = __webpack_require__(5);
-	var worker_event_1 = __webpack_require__(2);
-	var fake_context_1 = __webpack_require__(3);
-	var utils_1 = __webpack_require__(4);
-	var async = __webpack_require__(6);
+	var declare_1 = __webpack_require__(2);
+	var worker_event_1 = __webpack_require__(3);
+	var fake_context_1 = __webpack_require__(4);
+	var utils_1 = __webpack_require__(5);
 	var FakeWorker = (function () {
 	    //构造函数
 	    function FakeWorker(jspath) {
 	        /**
 	         * 当前线程状态
 	         */
-	        this.stat = declare_1.Stat.IDLE;
+	        this._stat = declare_1.Stat.IDLE;
 	        /**
 	         * 线程js文件路径
 	         */
@@ -158,9 +157,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	         * fake线程的上下文
 	         */
 	        this.fakeContext = null;
-	        /**
-	         * fake线程实例
-	         */
 	        this.fakeWorker = null;
 	        /**
 	         * 主页面发送的消息队列
@@ -168,6 +164,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	         * 若fake线程使用importScripts，则也需要全量发送
 	         */
 	        this.MainMsgQueue = [];
+	        this.importScriptsCache = {};
+	        this.importScriptsQueue = [];
 	        /**
 	         * 主页面的消息监听函数列队
 	         */
@@ -191,6 +189,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	        enumerable: true,
 	        configurable: true
 	    });
+	    Object.defineProperty(FakeWorker.prototype, "stat", {
+	        get: function () {
+	            return this._stat;
+	        },
+	        set: function (val) {
+	            this._stat = val;
+	            if (this._stat == declare_1.Stat.READY) {
+	                this._boardMsgQueueToThread(this.MainMsgQueue);
+	            }
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
 	    /**
 	     * 从主页面向fake线程传递消息
 	     */
@@ -199,7 +210,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if (this.stat != declare_1.Stat.READY) {
 	            this.MainMsgQueue.push(evt);
 	        }
-	        this._boardMsgQueueToThread([evt]);
+	        else {
+	            this._boardMsgQueueToThread([evt]);
+	        }
 	    };
 	    /**
 	     * 终止fake线程
@@ -220,6 +233,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	            console.error("\u65E0\u6548\u7684\u4E8B\u4EF6\u540D\u79F0: " + eventName);
 	        }
 	    };
+	    FakeWorker.prototype._importScripts = function (jspath) {
+	        var _this = this;
+	        this.stat = declare_1.Stat.LOADING;
+	        var p = utils_1.resolve(this.jspath, jspath);
+	        this.importScriptsQueue.push(p);
+	        this._importScriptsQueueList(function (codeStringList) {
+	            var context = _this.fakeContext;
+	            var worker = _this.fakeWorker;
+	            console.warn(codeStringList);
+	            eval("\n                (function(){\n                    console.error(1111);\n                    var my2 = 23;\n                    with(context){\n                        var my2 = 22;\n                    }\n                }).call(worker);\n            ");
+	            _this.stat = declare_1.Stat.READY;
+	            console.warn('ok');
+	        });
+	    };
 	    /**
 	     * 异步加载js代码（以文本形式）
 	     */
@@ -231,7 +258,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	            _this._evalJsCodeWithContext();
 	        });
 	    };
-	    FakeWorker.prototype._asyncLoadTxt = function (path, success) {
+	    FakeWorker.prototype._asyncLoadTxt = function (path, success, fail) {
+	        if (fail === void 0) { fail = (function () { }); }
 	        var xhr = (new XMLHttpRequest());
 	        xhr.responseType = "text";
 	        xhr.open('GET', path, true);
@@ -243,11 +271,42 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	            }
 	        };
-	        // xhr.ontimeout = function (e) { };
-	        // xhr.onerror = function (e) { };
-	        // xhr.upload.onprogress = function (e) { };
+	        xhr.ontimeout = function (e) {
+	        };
+	        xhr.onerror = function (e) {
+	        };
 	        //发送数据
 	        xhr.send(null);
+	    };
+	    FakeWorker.prototype._importScriptsQueueList = function (final) {
+	        var codeStringList = [];
+	        this._doImportScriptsQueueList(function (codeString) {
+	            if (codeString) {
+	                codeStringList.push(codeString);
+	            }
+	            else if (false === codeString) {
+	                final(codeStringList);
+	            }
+	        });
+	    };
+	    FakeWorker.prototype._doImportScriptsQueueList = function (cb) {
+	        var _this = this;
+	        if (this.importScriptsQueue.length) {
+	            var jspath = this.importScriptsQueue.shift();
+	            if (this.importScriptsCache[jspath]) {
+	                cb('');
+	            }
+	            else {
+	                this.importScriptsCache[jspath] = true;
+	                this._asyncLoadTxt(jspath, function (txt) {
+	                    cb(txt);
+	                    _this._doImportScriptsQueueList(cb);
+	                });
+	            }
+	        }
+	        else {
+	            cb(false);
+	        }
 	    };
 	    /**
 	     * 在fakeContext上下文环境下执行fake线程js代码
@@ -256,25 +315,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	    FakeWorker.prototype._evalJsCodeWithContext = function () {
 	        var _this = this;
 	        //找到直接importScripts
-	        var importList = [];
-	        var importCodeList = [];
 	        var reg = /importScripts\(\s*[\'\"](.+\.js)[\'\"]\s*\)/g;
 	        var arr;
 	        while ((arr = reg.exec(this.jscode)) != null) {
-	            importList.push(utils_1.resolve(this.jspath, arr[1]));
+	            this.importScriptsQueue.push(utils_1.resolve(this.jspath, arr[1]));
 	        }
-	        async.eachSeries(importList, function (p, cb) {
-	            _this._asyncLoadTxt(p, function (txt) {
-	                importCodeList.push(txt);
-	                cb(null);
-	            });
-	        }, function (error, results) {
+	        this._importScriptsQueueList(function (codeStringList) {
 	            var context = _this.fakeContext;
-	            var importCode = "\n\n" + importCodeList.join('\n') + "\n\n";
-	            var code = "(function(){with(context){" + importCode + _this.jscode + "};}).call(context)";
-	            console.warn(code);
-	            _this.fakeWorker = eval(code);
-	            _this._boardMsgQueueToThread(_this.MainMsgQueue);
+	            var importCode = "\n\n" + codeStringList.join('\n') + "\n\n";
+	            // console.warn(importCode);
+	            var script = document.createElement('script');
+	            script.innerHTML = "\n                var a = 1;\n                setInterval(function(){\n                    console.warn(a, b);\n                }, 3000);\n            ";
+	            document.body.appendChild(script);
+	            var script2 = document.createElement('script');
+	            script2.innerHTML = "\n                window.b = 2;\n            ";
+	            setTimeout(function () {
+	                document.body.appendChild(script2);
+	            }, 5000);
+	            setTimeout(function () {
+	                document.body.removeChild(script);
+	            }, 15000);
+	            // const code = `(function(){
+	            //         var my2 = -1;
+	            //         ${importCode}${this.jscode}
+	            //     return this;
+	            // }).call(context)`;
+	            // console.warn(code);
+	            // const worker = this.fakeWorker;
+	            // console.warn(worker);
+	            // eval(`
+	            //     (function(){
+	            //         var my2 = 23;
+	            //         with(context){
+	            //             var my2 = 22;
+	            //         }
+	            //     }).call(worker);
+	            // `);
+	            _this.stat = declare_1.Stat.READY;
 	        });
 	    };
 	    /**
@@ -319,6 +396,20 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, exports) {
 
 	Object.defineProperty(exports, "__esModule", { value: true });
+	var Stat;
+	(function (Stat) {
+	    Stat[Stat["IDLE"] = 0] = "IDLE";
+	    Stat[Stat["LOADING"] = 1] = "LOADING";
+	    Stat[Stat["IMPORTING"] = 2] = "IMPORTING";
+	    Stat[Stat["READY"] = 3] = "READY";
+	})(Stat = exports.Stat || (exports.Stat = {}));
+
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports) {
+
+	Object.defineProperty(exports, "__esModule", { value: true });
 	var WorkerEvent = (function () {
 	    function WorkerEvent(msg) {
 	        this.data = null;
@@ -330,24 +421,20 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	Object.defineProperty(exports, "__esModule", { value: true });
-	var worker_event_1 = __webpack_require__(2);
+	var worker_event_1 = __webpack_require__(3);
 	var FakeContext = (function () {
 	    function FakeContext(fakeWorker) {
 	        this.fakeWorker = null;
 	        this.fakeWorker = fakeWorker;
 	    }
-	    Object.defineProperty(FakeContext.prototype, "self", {
-	        get: function () {
-	            return this;
-	        },
-	        enumerable: true,
-	        configurable: true
-	    });
 	    Object.defineProperty(FakeContext.prototype, "onmessage", {
+	        // get self() {
+	        //     return this;
+	        // }
 	        set: function (val) {
 	            this.fakeWorker.ThreadListenerList.onmessage = val;
 	        },
@@ -375,7 +462,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports) {
 
 	Object.defineProperty(exports, "__esModule", { value: true });
@@ -403,157 +490,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return arrFrom.join('/');
 	}
 	exports.resolve = resolve;
-
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-	Object.defineProperty(exports, "__esModule", { value: true });
-	var Stat;
-	(function (Stat) {
-	    Stat[Stat["IDLE"] = 0] = "IDLE";
-	    Stat[Stat["LOADING"] = 1] = "LOADING";
-	    Stat[Stat["IMPORTING"] = 2] = "IMPORTING";
-	    Stat[Stat["READY"] = 3] = "READY";
-	})(Stat = exports.Stat || (exports.Stat = {}));
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports) {
-
-	// root is global on the server, and window in the browser
-	var root = window;
-	// cached for performance
-	function noop() { }
-	var ObjectKeys = Object.keys;
-	// isArray and isObject functions
-	function isArray(arr) {
-	    return (Array.isArray(arr) && arr.length > 0);
-	}
-	function isObject(obj) {
-	    return (typeof obj === "object" && ObjectKeys(obj).length > 0);
-	}
-	function doEach(arr, iterator) {
-	    var i;
-	    var length = arr.length;
-	    for (i = 0; i < length; i++) {
-	        iterator(arr[i]);
-	    }
-	}
-	// https://github.com/caolan/async
-	function doOnce(fn) {
-	    var called = false;
-	    return function () {
-	        if (called)
-	            throw new Error("Callback already called.");
-	        called = true;
-	        fn.apply(root, arguments);
-	    };
-	}
-	// https://github.com/caolan/async
-	function _doOnce(fn) {
-	    var called = false;
-	    return function () {
-	        if (called)
-	            return;
-	        called = true;
-	        fn.apply(this, arguments);
-	    };
-	}
-	var async = {
-	    // runs the task on every item in the array at once
-	    each: function (arr, iterator, callback) {
-	        callback = _doOnce(callback || noop);
-	        var amount = arr.length;
-	        if (!isArray(arr))
-	            return callback();
-	        var completed = 0;
-	        doEach(arr, function (item) {
-	            iterator(item, doOnce(function (err) {
-	                if (err) {
-	                    callback(err);
-	                    callback = noop;
-	                }
-	                else {
-	                    completed++;
-	                    if (completed >= amount)
-	                        callback(null);
-	                }
-	            }));
-	        });
-	    },
-	    eachSeries: function (arr, iterator, callback) {
-	        callback = _doOnce(callback || noop);
-	        var amount = arr.length;
-	        if (!isArray(arr))
-	            return callback();
-	        var completed = 0;
-	        var iterate = function () {
-	            iterator(arr[completed], doOnce(function (err) {
-	                if (err) {
-	                    callback(err);
-	                    callback = noop;
-	                }
-	                else {
-	                    completed++;
-	                    if (completed < amount) {
-	                        iterate();
-	                    }
-	                    else {
-	                        callback(null);
-	                    }
-	                }
-	            }));
-	        };
-	        iterate();
-	    },
-	    // can accept an object or array
-	    // will return an object or array of results in the correct order
-	    parallel: function (tasks, callback) {
-	        var keys;
-	        var length;
-	        var i;
-	        var results;
-	        var kind;
-	        var updated_tasks = [];
-	        var is_object;
-	        var counter = 0;
-	        if (isArray(tasks)) {
-	            length = tasks.length;
-	            results = [];
-	        }
-	        else if (isObject(tasks)) {
-	            is_object = true;
-	            keys = ObjectKeys(tasks);
-	            length = keys.length;
-	            results = {};
-	        }
-	        else {
-	            return callback();
-	        }
-	        for (i = 0; i < length; i++) {
-	            if (is_object) {
-	                updated_tasks.push({ k: keys[i], t: tasks[keys[i]] });
-	            }
-	            else {
-	                updated_tasks.push({ k: i, t: tasks[i] });
-	            }
-	        }
-	        updated_tasks.forEach(function (task_object) {
-	            task_object.t(function (err, result) {
-	                if (err)
-	                    return callback(err);
-	                results[task_object.k] = result;
-	                counter++;
-	                if (counter == length)
-	                    callback(null, results);
-	            });
-	        });
-	    },
-	};
-	module.exports = async;
 
 
 /***/ })
