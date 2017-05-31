@@ -19,6 +19,15 @@ body hr {
   flex: 1;
   border-top: 1px solid #ababab;
   border-bottom: 1px solid #ababab;
+  display: flex;
+}
+.wrap .codebox pre {
+  flex: 1;
+  margin: 0px;
+  display: flex;
+}
+.wrap .codebox pre code {
+  flex: 1;
 }
 .wrap #right {
   border-left: 1px solid #ababab;
