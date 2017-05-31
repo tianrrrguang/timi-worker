@@ -7,7 +7,7 @@ module.exports = {
         extensions: ['', '.webpack.js', '.web.js', '.ts', '.js']
     },
     entry: {
-        'timi-worker': './src/index.ts'
+        'timi-worker': './src-iframe/index.ts'
     },
     output: {
         path: path.join(__dirname, 'dist'),

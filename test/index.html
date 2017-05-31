@@ -4,185 +4,75 @@
 <head>
     <title>TimiWorker测试</title>
     <link href="./style/main.css" rel="stylesheet">
+    <link href="./style/high/vs2015.css" rel="stylesheet">
 </head>
 
 <body>
-    <div id="env" class="unit">
-        <input type="radio" value="native" v-model="env">
-        <label>NativeWorker</label>
-        <input type="radio" value="fake" v-model="env">
-        <label>FakeWorker</label>
+    <div class="wrap">
+        <div class="codebox" id="left">
+            <pre><code class="javascript">...</code></pre>
+        </div>
+        <div class="codebox" id="right">
+            <pre><code class="javascript">...</code></pre>
+        </div>
     </div>
-    <div id="message" class="unit">
-        [线程]onmessage=...
-        <button v-on:click="run">开始</button>
+    <div class="buttons">
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
     </div>
-    <div id="self_message" class="unit">
-        [线程]self.onmessage=...
-        <button v-on:click="run">开始</button>
-    </div>
-    <div id="addEventListener_message" class="unit">
-        [线程]addEventListener('message', ...)
-        <button v-on:click="run">开始</button>
-    </div>
-    <div id="self_addEventListener_message" class="unit">
-        [线程]self.addEventListener('message', ...)
-        <button v-on:click="run">开始</button>
-    </div>
-    <div id="main_onmessage" class="unit">
-        [线程]postMessage | [主页面]onmessage
-        <button v-on:click="run">开始</button>
-    </div>
-    <div id="main_addEventListener" class="unit">
-        [线程]postMessage | [主页面]addEventListener
-        <button v-on:click="run">开始</button>
-    </div>
-    <div id="importScripts1" class="unit">
-        [线程]直接默认importScripts("...")
-        <button v-on:click="run">开始</button>
-    </div>
+    <hr>
+    <button id="run_terminate" class="run">Terminate wList(0)</button>
+    <button id="run_native" class="run">Run With NativeWorker</button>
+    <button id="run_timi" class="run">Run With TimiWorker</button>
+    <img src="./style/timg.gif" style="height:70px;">
 </body>
 
 </html>
-<script src="./lib/vue.js"></script>
-<script src="./lib/tpl.js"></script>
+<script src="./lib/jquery-3.2.1.min.js"></script>
+<script src="./lib/highlight.pack.js"></script>
 <script src="../dist/timi-worker.js"></script>
+<script src="./lib/code.js"></script>
 <script>
+    var wList = [];
+    var code = '';
 
-    TimiWorker.DEBUG = true;
-    TimiWorker.forceFake = true;
+    TimiWorker.DEBUG = 1;
 
-    //环境
-    new Vue({
-        el: '#env',
-        data: {
-            env: 'fake'
-        },
-        watch: {
-            env: function (val) {
-                switch (val) {
-                    case 'fake':
-                        TimiWorker.forceFake = true;
-                        break;
-                    case 'native':
-                        if (window && window['Worker']) {
-                            TimiWorker.forceFake = false;
-                        }
-                        else {
-                            console.error('您的运行环境不支持NativeWorker!');
-                            this.env = 'fake';
-                        }
-                }
-            }
+    function refreshT() {
+        $('#run_terminate').text(`Terminate wList(${wList.length})`);
+    }
+    bindBindEvent();
+    $('.buttons button:eq(0)').click();
+
+    $('#run_native').on('click', function () {
+        console.clear();
+        TimiWorker.forceFake = false;
+        if (TimiWorker.enableNative) {
+            eval(code);
+            refreshT();
         }
-    })
-
-    //线程onmessage
-    new Vue({
-        el: '#message',
-        data: {
-
-        },
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w1.js');
-                tpl[1](worker);
-            }
+        else {
+            alert('不支持NativeWorker');
         }
     });
 
-    //线程self.onmessage
-    new Vue({
-        el: '#self_message',
-        data: {
-
-        },
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w2.js');
-                tpl[1](worker);
-            }
-        }
+    $('#run_timi').on('click', function () {
+        console.clear();
+        TimiWorker.forceFake = true;
+        eval(code);
+        refreshT();
     });
 
-    //线程addEventListener
-    new Vue({
-        el: '#addEventListener_message',
-        data: {
-
-        },
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w3.js');
-                tpl[1](worker);
+    $('#run_terminate').on('click', function () {
+        while (wList.length) {
+            try {
+                var w = wList.shift();
+                w.terminate();
             }
+            catch (err) { }
         }
-    });
-
-    //线程self.addEventListener
-    new Vue({
-        el: '#self_addEventListener_message',
-        data: {
-
-        },
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w4.js');
-                tpl[1](worker);
-            }
-        }
-    });
-
-    //主页面onmessage+线程postMessage
-    new Vue({
-        el: '#main_onmessage',
-        data: {},
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w5.js');
-                worker.onmessage = function(evt){
-                    console.log('[主页面]收到消息: '+evt.data);
-                };
-                tpl[1](worker);
-            }
-        }
-    });
-
-    //主页面addEventListener+线程postMessage
-    new Vue({
-        el: '#main_addEventListener',
-        data: {},
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w5.js');
-                worker.addEventListener('message', function(evt){
-                    console.log('[主页面]收到消息: '+evt.data);
-                });
-                tpl[1](worker);
-            }
-        }
-    });
-
-    //直接importScripts
-    new Vue({
-        el: '#importScripts1',
-        data: {},
-        methods: {
-            run: function () {
-                tpl[0]();
-                const worker = new TimiWorker('./worker/w6.js');
-                worker.addEventListener('message', function(evt){
-                    console.log('[主页面]收到消息: '+evt.data);
-                });
-                tpl[1](worker);
-            }
-        }
+        refreshT();
     });
 
 </script>

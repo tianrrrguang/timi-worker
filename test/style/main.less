@@ -2,11 +2,33 @@ html,body{
     margin: 0px;
     padding: 0px;
     font-size: 14px;
-}
-.unit{
-    padding: 5px;
-    border-bottom: 1px solid #cdcdcd;
-    p{
-        margin: 4px 0px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    hr{
+        margin: 0px;
     }
+}
+.wrap{
+    display: flex;
+    height: 90%;
+    .codebox{
+        flex: 1;
+        border-top: 1px solid #ababab;
+        border-bottom: 1px solid #ababab;
+    }
+    #right{
+        border-left: 1px solid #ababab;
+    }
+}
+.buttons {
+    margin: 0 4px;
+    button {
+        margin: 4px 0px;
+        display: inline-block;
+    }
+}
+.run{
+    float: right;
+    margin: 4px;
 }
