@@ -6,6 +6,7 @@ export const makeIframeHtml = function (uuid, jspath) {
             <body></body>
         </html>
         <script>
+        //IE不允许重写window.postMessage()
         window.postMessage = function(msg){
             window.parent.postMessage({
                 uuid: '${uuid}',

@@ -11,10 +11,15 @@ export class FakeWorker {
     private _stat: Stat = Stat.IDLE;
     private msgQueue: any[] = [];
     private uuid: string = uuid();
+    private _onmessage: Function = (() => { });
 
     get stat() { return this._stat; }
     set stat(val) {
         this._stat = val;
+    }
+
+    set onmessage(val) {
+        this._onmessage = val;
     }
 
     constructor(jspath) {
@@ -41,6 +46,7 @@ export class FakeWorker {
             if (evt.data.uuid !== this.uuid) {
                 return;
             }
+            this._onmessage(evt.data);
         }, false);
     }
 
@@ -51,7 +57,7 @@ export class FakeWorker {
         iframe.style.display = 'none';
         iframe.setAttribute('uuid', this.uuid);
         iframe.src = makeIframeHtml(
-            this.uuid, 
+            this.uuid,
             resolve(location.href, this.jspath)
         );
         iframe.onload = () => {
@@ -87,8 +93,8 @@ export class FakeWorker {
         xhr.send(null);
     }
 
-    private boardMsgQueue(): void{
-        this.msgQueue.forEach((msg)=>{
+    private boardMsgQueue(): void {
+        this.msgQueue.forEach((msg) => {
             this.postMessage(msg);
         });
     }

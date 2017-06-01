@@ -8,9 +8,7 @@ var count = 0;
 var tryfunc = function () {
     if (maxtry--) {
         worker.postMessage(count++);
-        setTimeout(function () {
-            tryfunc();
-        }, 1000);
+        setTimeout(tryfunc, 1000);
     }
 };
 tryfunc();

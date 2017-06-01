@@ -168,6 +168,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this._stat = declare_1.Stat.IDLE;
 	        this.msgQueue = [];
 	        this.uuid = utils_1.uuid();
+	        this._onmessage = (function () { });
 	        this.jspath = jspath;
 	        this.stat = declare_1.Stat.LOADING;
 	        this.bindMessageListener();
@@ -178,6 +179,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        get: function () { return this._stat; },
 	        set: function (val) {
 	            this._stat = val;
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(FakeWorker.prototype, "onmessage", {
+	        set: function (val) {
+	            this._onmessage = val;
 	        },
 	        enumerable: true,
 	        configurable: true
@@ -197,6 +205,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            if (evt.data.uuid !== _this.uuid) {
 	                return;
 	            }
+	            _this._onmessage(evt.data);
 	        }, false);
 	    };
 	    FakeWorker.prototype.createIframeContext = function () {
@@ -251,7 +260,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.makeIframeHtml = function (uuid, jspath) {
-	    var str = "\n        <!DOCTYPE html>\n        <html>\n            <head></head>\n            <body></body>\n        </html>\n        <script>\n        window.postMessage = function(msg){\n            window.parent.postMessage({\n                uuid: '" + uuid + "',\n                data: msg\n            },'*');\n        };\n        </script>\n        <script src=\"" + jspath + "\"></script>\n    ";
+	    var str = "\n        <!DOCTYPE html>\n        <html>\n            <head></head>\n            <body></body>\n        </html>\n        <script>\n        //IE\u4E0D\u5141\u8BB8\u91CD\u5199window.postMessage()\n        window.postMessage = function(msg){\n            window.parent.postMessage({\n                uuid: '" + uuid + "',\n                data: msg\n            },'*');\n        };\n        </script>\n        <script src=\"" + jspath + "\"></script>\n    ";
 	    return 'data:text/html;charset=utf-8,' + encodeURI(str);
 	};
 
