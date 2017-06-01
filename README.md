@@ -1,15 +1,27 @@
 # timi-worker
-A WebWorker Polyfill / WebWorker兼容垫片
+WebWorker兼容垫片
+>请在移动端使用，PC不保证兼容性
 
 ## 1. Web Workers API Support
 
 | API | 支持 | 备注 |
 |---|---|---|
-|postMessage|<span style="color:#00B100">Yes</span>||
-|onmessage|<span style="color:#00B100">Yes</span>||
-|terminate|<span style="color:#00B100">Yes</span>||
-|addEventListener&lt;message>|<span style="color:#00B100">Yes</span>||
+|postMessage|Yes||
+|onmessage|Yes||
+|onerror|No||
+|terminate|Yes||
+|addEventListener|Yes|message|
+|removeEventListener|No||
+|dispatchEvent|No||
 例子:
+```html
+<!-- 方式1，通过script使用 -->
+<script src="xxxx/timi-worker.js"></script>
+```
+```javascript
+//方式2，通过commonjs方式使用
+const TimiWorker = require('xxx/timi-worker.js');
+```
 ```javascript
 //无需判断当前浏览器是否支持Worker
 var w = new TimiWorker('xxxxx.js');
@@ -27,11 +39,18 @@ w.terminate();
 
 | API | 支持 | 备注 |
 |---|---|---|
-|postMessage|<span style="color:#00B100">Yes</span>||
-|onmessage|<span style="color:#00B100">Yes</span>||
-|addEventListener&lt;message>|<span style="color:#00B100">Yes</span>||
+|importScripts|Yes|详见importScripts说明|
+|postMessage|Yes||
+|onmessage|Yes||
+|onerror|No||
+|addEventListener|Yes|message|
+|removeEventListener|No||
+|dispatchEvent|No||
+|close|No||
 例子:
 ```javascript
+//直接importScripts时请使用字符串字面量，勿使用变量
+importScripts('./aa.js', './bb.js');
 
 this.onmessage = function(evt){
     console.log('[线程]收到消息: '+evt.data);
@@ -39,6 +58,17 @@ this.onmessage = function(evt){
 
 this.addEventListener('message', function(evt){
     console.log('[线程]收到消息: '+evt.data);
+    switch(evt.data.act){
+        case 'import':
+            importScripts(evt.data.url);
+            break;
+        case 'xxx':
+            //TODO
+            break;
+        default:
+            //TODO
+            break
+    }
 });
 
 postMessage(...);//ok
