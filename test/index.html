@@ -43,7 +43,7 @@
         $('#run_terminate').text(`Terminate wList(${wList.length})`);
     }
     bindBindEvent();
-    $('.buttons button:eq(0)').click();
+    $('.buttons button:eq('+(localStorage.getItem('index')||0)+')').click();
 
     $('#run_native').on('click', function () {
         console.clear();

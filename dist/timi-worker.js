@@ -163,6 +163,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	// console.warn(iframeHtml);
 	var FakeWorker = (function () {
 	    function FakeWorker(jspath) {
+	        var _this = this;
 	        this.jspath = '';
 	        this.iframe = null;
 	        this._stat = declare_1.Stat.IDLE;
@@ -170,11 +171,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.uuid = utils_1.uuid();
 	        this._onmessage = (function () { });
 	        this._messages = [];
-	        this.jspath = jspath;
+	        this.jspath = utils_1.resolve(location.href, jspath);
 	        this.stat = declare_1.Stat.LOADING;
 	        this.bindMessageListener();
-	        this.createIframeContext();
-	        this.loadJsCode();
+	        this.parseImportScripts(function (list) {
+	            _this.createIframeContext(list);
+	        });
 	    }
 	    Object.defineProperty(FakeWorker.prototype, "stat", {
 	        get: function () { return this._stat; },
@@ -213,27 +215,41 @@ return /******/ (function(modules) { // webpackBootstrap
 	            if (evt.data.uuid !== _this.uuid) {
 	                return;
 	            }
+	            if (evt.data.isReady) {
+	                _this.stat = declare_1.Stat.READY;
+	                _this.boardMsgQueue();
+	                return;
+	            }
 	            _this._onmessage(evt.data);
 	            _this._messages.forEach(function (cb) {
 	                cb(evt.data);
 	            });
 	        }, false);
 	    };
-	    FakeWorker.prototype.createIframeContext = function () {
+	    FakeWorker.prototype.parseImportScripts = function (cb) {
 	        var _this = this;
+	        this.asyncLoadTxt(this.jspath, function (txt) {
+	            var list = [];
+	            var reg = /importScripts\(\s*([\'\"].+\.js[\'\"])\s*\)/g;
+	            var arr;
+	            while ((arr = reg.exec(txt)) != null) {
+	                var str = arr[1].replace(/[\'\"\s]/g, '');
+	                var jsArr = str.split(',');
+	                jsArr.forEach(function (js) {
+	                    list.push(utils_1.resolve(_this.jspath, js));
+	                });
+	            }
+	            cb(list);
+	        });
+	    };
+	    FakeWorker.prototype.createIframeContext = function (list) {
 	        var iframe = this.iframe = document.createElement('iframe');
 	        iframe.style.width = '0px';
 	        iframe.style.height = '0px';
 	        iframe.style.display = 'none';
 	        iframe.setAttribute('uuid', this.uuid);
-	        iframe.src = iframe_html_1.makeIframeHtml(this.uuid, utils_1.resolve(location.href, this.jspath));
-	        iframe.onload = function () {
-	            _this.stat = declare_1.Stat.READY;
-	            _this.boardMsgQueue();
-	        };
+	        iframe.src = iframe_html_1.makeIframeHtml(this.uuid, this.jspath, list);
 	        document.body.appendChild(iframe);
-	    };
-	    FakeWorker.prototype.loadJsCode = function () {
 	    };
 	    FakeWorker.prototype.asyncLoadTxt = function (path, success, fail) {
 	        if (fail === void 0) { fail = (function () { }); }
@@ -270,8 +286,15 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, exports) {
 
 	Object.defineProperty(exports, "__esModule", { value: true });
-	exports.makeIframeHtml = function (uuid, jspath) {
-	    var str = "\n        <!DOCTYPE html>\n        <html>\n            <head></head>\n            <body></body>\n        </html>\n        <script>\n        //IE\u4E0D\u5141\u8BB8\u91CD\u5199window.postMessage()\n        window.postMessage = function(msg){\n            window.parent.postMessage({\n                uuid: '" + uuid + "',\n                data: msg\n            },'*');\n        };\n        </script>\n        <script src=\"" + jspath + "\"></script>\n    ";
+	exports.makeIframeHtml = function (uuid, jspath, importsList) {
+	    if (importsList === void 0) { importsList = []; }
+	    var _importScripts = {};
+	    var importScriptList = '';
+	    importsList.forEach(function (js) {
+	        importScriptList += "<script src=\"" + js + "\"></script>\n";
+	        _importScripts[js] = true;
+	    });
+	    var str = "\n        <!DOCTYPE html>\n        <html>\n            <head></head>\n            <body></body>\n        </html>\n        <script>\n        window._importScripts = " + JSON.stringify(_importScripts) + ";\n        window._uuid = '" + uuid + "';\n        window._jspath = '" + jspath + "';\n        //resolve\n        window._resolve = function(from, to) {\n            var arrFrom = from.split('/');\n            var arrTo = to.split('/');\n            var arrPath = [];\n            var prev = 1;\n            for(var i=0; i<arrTo.length; i++){\n                if( arrTo[i] == '..' ){\n                    prev++;\n                }\n                else if( arrTo[i] == '.' ){\n                    continue;\n                }\n                else{\n                    arrPath.push(arrTo[i]);\n                }\n            }\n            arrFrom.length-=prev;\n            return arrFrom.join('/')+'/'+arrPath.join('/');\n        };\n        //IE\u4E0D\u5141\u8BB8\u91CD\u5199window.postMessage()\n        window.postMessage = function(msg){\n            window.parent.postMessage({\n                uuid: _uuid,\n                data: msg\n            },'*');\n        };\n        //\u6587\u4EF6\u5BFC\u5165\n        window.importScripts = function(){\n            var len = arguments.length;\n            var i = 0;\n            var list = [];\n            for(; i<len; i++){\n                var js = _resolve(_jspath, arguments[i]);\n                if( _importScripts[js] ){\n                    // console.log(js+'\u5DF2\u52A0\u8F7D\u8FC7!');\n                }\n                else{\n                    _loadScripts(js);\n                }\n            }\n        };\n        //\u811A\u672C\u5BFC\u5165\n        window._loadScripts = function(js){\n            var script = document.createElement(\"script\");\n            script.onload = function(){\n\n            };\n            script.src = js;\n            document.body.appendChild(script);\n        };\n        //ready ok\n        window._ready = function(){\n            window.parent.postMessage({\n                uuid: _uuid,\n                isReady: true\n            },'*');\n        };\n        </script>\n        " + importScriptList + "\n        <script src=\"" + jspath + "\"></script>\n        <script>\n        _ready();\n        </script>\n    ";
 	    return 'data:text/html;charset=utf-8,' + encodeURI(str);
 	};
 

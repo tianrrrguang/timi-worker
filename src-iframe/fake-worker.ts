@@ -20,11 +20,12 @@ export class FakeWorker {
     }
 
     constructor(jspath) {
-        this.jspath = jspath;
+        this.jspath = resolve(location.href, jspath);
         this.stat = Stat.LOADING;
         this.bindMessageListener();
-        this.createIframeContext();
-        this.loadJsCode();
+        this.parseImportScripts((list) => {
+            this.createIframeContext(list);
+        });
     }
 
     set onmessage(val) {
@@ -39,7 +40,7 @@ export class FakeWorker {
     }
 
     addEventListener(name, cb): void {
-        switch(name){
+        switch (name) {
             case 'message':
                 this._messages.push(cb);
                 break;
@@ -55,32 +56,42 @@ export class FakeWorker {
             if (evt.data.uuid !== this.uuid) {
                 return;
             }
+            if (evt.data.isReady) {
+                this.stat = Stat.READY;
+                this.boardMsgQueue();
+                return;
+            }
             this._onmessage(evt.data);
-            this._messages.forEach((cb)=>{
+            this._messages.forEach((cb) => {
                 cb(evt.data);
             });
         }, false);
     }
 
-    private createIframeContext(): void {
+    private parseImportScripts(cb: Function): void {
+        this.asyncLoadTxt(this.jspath, (txt) => {
+            let list = [];
+            const reg = /importScripts\(\s*([\'\"].+\.js[\'\"])\s*\)/g;
+            let arr;
+            while ((arr = reg.exec(txt)) != null) {
+                const str = arr[1].replace(/[\'\"\s]/g, '');
+                const jsArr = str.split(',');
+                jsArr.forEach((js) => {
+                    list.push(resolve(this.jspath, js));
+                });
+            }
+            cb(list);
+        });
+    }
+
+    private createIframeContext(list): void {
         const iframe = this.iframe = document.createElement('iframe');
         iframe.style.width = '0px';
         iframe.style.height = '0px';
         iframe.style.display = 'none';
         iframe.setAttribute('uuid', this.uuid);
-        iframe.src = makeIframeHtml(
-            this.uuid,
-            resolve(location.href, this.jspath)
-        );
-        iframe.onload = () => {
-            this.stat = Stat.READY;
-            this.boardMsgQueue();
-        };
+        iframe.src = makeIframeHtml(this.uuid, this.jspath, list);
         document.body.appendChild(iframe);
-    }
-
-    private loadJsCode(): void {
-
     }
 
     private asyncLoadTxt(path: string, success: Function, fail: Function = (() => { })): void {

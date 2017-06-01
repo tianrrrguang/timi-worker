@@ -49,7 +49,7 @@ function bindBindEvent() {
         var num = $(this).text();
         fillmain(num);
         fillworker(num);
-        gIndex = num;
+        localStorage.setItem('index', num-1);
         $('.buttons button').css('color', 'black');
         $(this).css('color', 'red');
     });
