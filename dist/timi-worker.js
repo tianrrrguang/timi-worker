@@ -176,6 +176,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this._onmessage = (function () { });
 	        this._messages = [];
 	        this._onerror = null;
+	        this._errors = [];
 	        this.jspath = utils_1.resolve(location.href, jspath);
 	        this.stat = declare_1.Stat.LOADING;
 	        this.bindMessageListener();
@@ -219,6 +220,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        switch (name) {
 	            case 'message':
 	                this._messages.push(cb);
+	                break;
+	            case 'error':
+	                this._errors.push(cb);
 	                break;
 	        }
 	    };
@@ -308,6 +312,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    FakeWorker.prototype.fireError = function () {
 	        if (this._onerror) {
 	            this._onerror();
+	            this._errors.forEach(function (cb) {
+	                cb();
+	            });
 	        }
 	        else {
 	            this.errorQueue.push(1);

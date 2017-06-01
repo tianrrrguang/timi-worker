@@ -10,7 +10,7 @@ WebWorker兼容垫片
 |onmessage|Yes||
 |onerror|Yes|Web Worker文件加载错误, Dedicated Worker执行错误, importScripts加载错误时响应|
 |terminate|Yes||
-|addEventListener|Yes|message|
+|addEventListener|Yes|message, error|
 |removeEventListener|No||
 |dispatchEvent|No||
 
@@ -80,9 +80,9 @@ this.postMessage(...);//ok
 ```
 ## 3. 技术实现
 
-在最初设想的实现方式中，`eval`是作为首选的方案的，因为TimiWorker被设计为高性能`H5游戏`及其jsb的逻辑运算容器，所以需要一种完全不依赖dom的方案，但`eval`方案在处理`terminate`和`importScripts`遇到极大的问题，尤其是`terminate`，几乎无法实现。
+在最初设想的实现方式中，`eval`是作为首选的方案的，因为TimiWorker被设计为高性能`H5游戏`及其jsb的逻辑运算容器，所以需要一种完全不依赖dom的方案，但`eval`方案在处理`terminate`和`importScripts`时遇到极大的问题，尤其是`terminate`，几乎无法实现。
 
-无奈之下，改用`iframe`实现，这样就不得不放弃jsb平台，基于`iframe`的特性，各种WebWorker的API得意很好的polyfill，基本表现已经没有任何区别，尤其是`importScripts`，这个功能的实现是最麻烦的，`TimiWorker`也较好的实现了兼容，当然，无论怎样兼容都不可能真正的多线程效果，只是在写法上，可以让开发者保持高度一致。
+无奈之下，改用`iframe`实现，这样就不得不放弃jsb平台，基于`iframe`的特性，各种WebWorker的API得以很好的polyfill，基本表现已经没有任何区别，尤其是`importScripts`，这个功能的实现是最麻烦的，`TimiWorker`也较好的实现了兼容，当然，无论怎样兼容都不可能实现真正的多线程效果，但至少在写法上，可以让开发者保持高度一致。
 
 <span id="importScripts"></span>
 ## 4. importScripts的使用说明
@@ -93,20 +93,19 @@ this.postMessage(...);//ok
 ```javascript
 importScripts('a.js', 'b.js');
 importScripts('c.js');
-
-this.onmessage = ....
 ```
 这种importScripts是支持的，唯独需要注意的是，脚本路径需要为字面常量，不可以是变量或者拼接，如
 ```javascript
 var jspath = 'path/a';
-importScripts('a.js', 'b.js');//ok
-importScripts(jspath+'.js');//no
+importScripts('a.js', 'b.js'); //ok
+importScripts(jspath + '.js'); //no
 ```
 
 ### 4-2. 条件importScripts
 
 即worker在满足一定条件时，触发importScripts，之后再执行其他代码，例如:
 ```javascript
+//Dedicated Workers
 this.onmessage = function(evt){
     switch(evt.data.act){
         case 'import':
@@ -119,7 +118,7 @@ this.onmessage = function(evt){
 };
 ```
 这种情况也是支持的，但有2点需要注意:
-1. 不可以在条件importScripts之后，立即跟随依赖代码，例如:
+>1. 不可以在条件importScripts之后，立即跟随依赖代码，例如:
 ```javascript
 this.onmessage = function(evt){
     switch(evt.data.act){
@@ -130,7 +129,7 @@ this.onmessage = function(evt){
     }
 };
 ```
-2. 由于iframe的postMessage有一定的时间差，所以iframe可能无法立刻知道Dedicated Workers已经进入条件importScripts了，可能导致某些问题，此时可以使用TimiWorker特有的`execImportScripts`方法，手动通知iframe，例如：
+>2. 由于iframe的postMessage有一定的时间差，所以iframe可能无法立刻知道Dedicated Workers已经进入条件importScripts了，这个时间差可能导致某些问题，此时可以使用TimiWorker特有的`execImportScripts`方法，手动通知iframe，例如：
 ```javascript
 var w = new TimiWorker('xxx.js');
 //Dedicated Workers收到该消息后开始条件importScripts，并通知iframe该动作

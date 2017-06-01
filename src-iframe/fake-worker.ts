@@ -15,6 +15,7 @@ export class FakeWorker {
     private _onmessage: Function = (() => { });
     private _messages: Function[] = [];
     private _onerror: any = null;
+    private _errors: Function[] = [];
 
     get stat() { return this._stat; }
     set stat(val) {
@@ -36,7 +37,7 @@ export class FakeWorker {
 
     set onerror(val) {
         this._onerror = val;
-        if( this.errorQueue.length ){
+        if (this.errorQueue.length) {
             this.errorQueue = [];
             this.fireError();
         }
@@ -53,6 +54,9 @@ export class FakeWorker {
         switch (name) {
             case 'message':
                 this._messages.push(cb);
+                break;
+            case 'error':
+                this._errors.push(cb);
                 break;
         }
     }
@@ -122,7 +126,7 @@ export class FakeWorker {
                 if (this.status == 200 || this.status == 304) {
                     success(this.responseText);
                 }
-                else if( this.status == 404 ){
+                else if (this.status == 404) {
                     self.fireError();
                 }
             }
@@ -144,10 +148,13 @@ export class FakeWorker {
     }
 
     private fireError(): void {
-        if( this._onerror ){
+        if (this._onerror) {
             this._onerror();
+            this._errors.forEach((cb) => {
+                cb();
+            });
         }
-        else{
+        else {
             this.errorQueue.push(1);
         }
     }
