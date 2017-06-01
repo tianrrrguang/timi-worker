@@ -142,6 +142,16 @@ w.postMessage({
     act: 'xxx'
 });
 ```
+```javascript
+//或者可以使用看起来更优雅的方法，设置postMessage的第2个参数trun2loading为true
+w.postMessage({
+    act: 'import',
+    ur1: './import1.js'
+}, true);
+w.postMessage({
+    act: 'xxx'
+});
+```
 
 <span id="close"></span>
 ## 5. close的使用说明

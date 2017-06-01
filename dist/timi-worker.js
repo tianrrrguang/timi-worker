@@ -94,8 +94,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        enumerable: true,
 	        configurable: true
 	    });
-	    TimiWorker.prototype.postMessage = function (data) {
+	    TimiWorker.prototype.postMessage = function (data, trun2loading) {
+	        if (trun2loading === void 0) { trun2loading = false; }
 	        this.worker && this.worker.postMessage(data);
+	        if (trun2loading === true) {
+	            this.execImportScripts();
+	        }
 	    };
 	    TimiWorker.prototype.terminate = function () {
 	        try {

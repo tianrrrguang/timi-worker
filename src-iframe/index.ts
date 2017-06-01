@@ -38,16 +38,19 @@ class TimiWorker {
         this._initWorker();
     }
 
-    postMessage(data): void {
+    postMessage(data, trun2loading: boolean = false): void {
         this.worker && this.worker.postMessage(data);
+        if( trun2loading === true ){
+            this.execImportScripts();
+        }
     }
 
     terminate(): void {
-        try{
+        try {
             this.worker.terminate();
             this.worker = null;
         }
-        catch(err){
+        catch (err) {
             this.worker = null;
         }
     }
@@ -64,7 +67,7 @@ class TimiWorker {
         this.worker.dispatchEvent.apply(this.worker, args);
     }
 
-    execImportScripts(): void{
+    execImportScripts(): void {
         this.worker.setLoading && this.worker.setLoading();
     }
 
