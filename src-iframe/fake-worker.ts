@@ -83,6 +83,11 @@ export class FakeWorker {
                 this.fireError();
                 return;
             }
+            if (evt.data.close) {
+                this.stat = Stat.IDLE;
+                this.terminate();
+                return;
+            }
             this._onmessage(evt.data);
             this._messages.forEach((cb) => {
                 cb(evt.data);

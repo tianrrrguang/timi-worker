@@ -2,7 +2,7 @@ function importIt(importsList) {
     const cache = {};
     let str = '';
     importsList.forEach((js) => {
-        str += `<script src="${js}" onerror11="_timi.error()"></script>`;
+        str += `<script src="${js}" onerror="_timi.error()"></script>`;
         cache[js] = true;
     });
     return [str, cache];
@@ -30,6 +30,9 @@ window._timi = {
     },
     error: function(){
         window.parent.postMessage({uuid: _timi.uuid, error: true},'*');
+    },
+    close: function(){
+        window.parent.postMessage({uuid: _timi.uuid, close: true},'*');
     },
     resolve: function(from, to) {
         var arrFrom = from.split('/');
@@ -105,6 +108,10 @@ window.importScripts = function(){
             _timi.loopLoadScripts();
         }
     }
+};
+//close重写
+window.close = function(){
+    _timi.close();
 };
 //self重写
 try{
