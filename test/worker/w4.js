@@ -14,6 +14,6 @@ this.addEventListener('message', function(evt){
             console.warn('default');
             setInterval(function(){
                 postMessage(my1.length+'/'+my2.length+'/'+performance.now());
-            }, 300);
+            }, 200);
     }
 });

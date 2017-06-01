@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "worker-polyfill",
   "scripts": {
+    "build": "webpack --watch",
     "test": "lite-server"
   },
   "devDependencies": {

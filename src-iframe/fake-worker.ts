@@ -1,6 +1,6 @@
 import { makeIframeHtml } from './iframe-html';
 import { Stat } from './declare';
-import { uuid, resolve } from './utils';
+import { uuid, resolve, getImportsList } from './utils';
 
 // console.warn(iframeHtml);
 
@@ -78,16 +78,7 @@ export class FakeWorker {
 
     private parseImportScripts(cb: Function): void {
         this.asyncLoadTxt(this.jspath, (txt) => {
-            let list = [];
-            const reg = /importScripts\(\s*([\'\"].+\.js[\'\"])\s*\)/g;
-            let arr;
-            while ((arr = reg.exec(txt)) != null) {
-                const str = arr[1].replace(/[\'\"\s]/g, '');
-                const jsArr = str.split(',');
-                jsArr.forEach((js) => {
-                    list.push(resolve(this.jspath, js));
-                });
-            }
+            const list = getImportsList(txt, this.jspath) || [];
             cb(list);
         });
     }

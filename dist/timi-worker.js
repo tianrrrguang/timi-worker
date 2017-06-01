@@ -239,16 +239,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    FakeWorker.prototype.parseImportScripts = function (cb) {
 	        var _this = this;
 	        this.asyncLoadTxt(this.jspath, function (txt) {
-	            var list = [];
-	            var reg = /importScripts\(\s*([\'\"].+\.js[\'\"])\s*\)/g;
-	            var arr;
-	            while ((arr = reg.exec(txt)) != null) {
-	                var str = arr[1].replace(/[\'\"\s]/g, '');
-	                var jsArr = str.split(',');
-	                jsArr.forEach(function (js) {
-	                    list.push(utils_1.resolve(_this.jspath, js));
-	                });
-	            }
+	            var list = utils_1.getImportsList(txt, _this.jspath) || [];
 	            cb(list);
 	        });
 	    };
@@ -355,6 +346,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return "uuid_" + s1 + "_" + s2 + "_" + s3 + "_" + s4;
 	}
 	exports.uuid = uuid;
+	function getImportsList(txt, jspath) {
+	    var list = [];
+	    var reg = /importScripts\(\s*([\'\"].+\.js[\'\"])\s*\)/g;
+	    var arr;
+	    while ((arr = reg.exec(txt)) != null) {
+	        var str = arr[1].replace(/[\'\"\s]/g, '');
+	        var jsArr = str.split(',');
+	        jsArr.forEach(function (js) {
+	            list.push(resolve(jspath, js));
+	        });
+	    }
+	    return list;
+	}
+	exports.getImportsList = getImportsList;
 
 
 /***/ })
