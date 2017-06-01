@@ -32,7 +32,6 @@ module.exports = {
         __dirname: false
     },
     externals: {
-        'protobufjs': 'protobufjs',
         'http': 'http',
         'fs': 'fs',
         'path': 'path'

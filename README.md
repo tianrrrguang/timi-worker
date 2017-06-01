@@ -8,7 +8,7 @@ WebWorker兼容垫片
 |---|---|---|
 |postMessage|Yes||
 |onmessage|Yes||
-|onerror|No||
+|onerror|Yes|Web Worker文件加载错误, Dedicated Worker执行错误, importScripts加载错误时响应|
 |terminate|Yes||
 |addEventListener|Yes|message|
 |removeEventListener|No||
@@ -42,7 +42,7 @@ w.terminate();
 |importScripts|Yes|详见importScripts说明|
 |postMessage|Yes||
 |onmessage|Yes||
-|onerror|No||
+|onerror|Yes||
 |addEventListener|Yes|message|
 |removeEventListener|No||
 |dispatchEvent|No||

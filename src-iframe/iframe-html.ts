@@ -83,9 +83,9 @@ window._timi = {
 };
 
 //错误监听
-window.onerror = function(e){
+window.addEventListener('error', function(){
     _timi.error();
-};
+});
 //postMessage重写
 window.postMessage = function(msg){
     window.parent.postMessage({uuid: _timi.uuid, data: msg},'*');
