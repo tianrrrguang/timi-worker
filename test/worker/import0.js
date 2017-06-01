@@ -1,1 +1,1 @@
-var my0 = 'my';
+var my0 = 'my0';

@@ -51,6 +51,10 @@ export class FakeWorker {
         document.body.removeChild(this.iframe);
     }
 
+    setLoading(): void {
+        this.stat = Stat.LOADING;
+    }
+
     private bindMessageListener(): void {
         window.addEventListener('message', (evt) => {
             if (evt.data.uuid !== this.uuid) {
@@ -59,6 +63,10 @@ export class FakeWorker {
             if (evt.data.isReady) {
                 this.stat = Stat.READY;
                 this.boardMsgQueue();
+                return;
+            }
+            if (evt.data.isLoading) {
+                this.stat = Stat.LOADING;
                 return;
             }
             this._onmessage(evt.data);

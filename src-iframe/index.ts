@@ -64,6 +64,10 @@ class TimiWorker {
         this.worker.dispatchEvent.apply(this.worker, args);
     }
 
+    execImportScripts(): void{
+        this.worker.setLoading && this.worker.setLoading();
+    }
+
     private _initWorker(): void {
         try {
             if (window && window['Worker']) {

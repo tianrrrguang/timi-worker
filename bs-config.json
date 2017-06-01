@@ -1,9 +1,11 @@
 {
-    "port": 3301,
+    "port": 3303,
     "files": [
         "./**/*.{html,htm,css,js}"
     ],
     "logLevel": "silent",
+    "notify": false,
+    "startPath": "/test/index.html",
     "server": {
         "baseDir": "./",
         "middleware": {

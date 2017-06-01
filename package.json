@@ -2,7 +2,11 @@
   "name": "timi-worker",
   "version": "0.0.1",
   "description": "worker-polyfill",
+  "scripts": {
+    "test": "lite-server"
+  },
   "devDependencies": {
+    "lite-server": "^2.3.0",
     "raw-loader": "^0.5.1",
     "ts-loader": "^2.0.3",
     "typescript": "^2.2.2",

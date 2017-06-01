@@ -5,5 +5,5 @@ importScripts('./import1.js', './import2.js');
 
 var count = 0;
 setInterval(function(){
-    postMessage(my0.length+'/'+my1.length+'/'+my2.length+'/'+(count++));
+    postMessage(my0+'/'+my1.length+'/'+my2.length+'/'+(count++));
 }, 1000);

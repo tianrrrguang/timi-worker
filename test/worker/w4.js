@@ -1,5 +1,19 @@
 console.debug('[线程]进入TimiWorker');
-console.debug('[线程]创建self.addEventListener');
-self.addEventListener('message', function(evt){
-    console.debug('[线程][回调]收到消息: '+evt.data);
+
+importScripts('./import0.js' );
+console.warn('my0: '+my0);
+
+this.addEventListener('message', function(evt){
+    switch(evt.data.act){
+        case 'import':
+            console.warn('import');
+            importScripts(evt.data.url1);
+            importScripts(evt.data.url2);
+            break;
+        default:
+            console.warn('default');
+            setInterval(function(){
+                postMessage(my1.length+'/'+my2.length+'/'+performance.now());
+            }, 300);
+    }
 });
