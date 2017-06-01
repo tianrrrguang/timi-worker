@@ -12,7 +12,7 @@ WebWorker兼容垫片
 |terminate|Yes||
 |addEventListener|Yes|message, error|
 |removeEventListener|Yes||
-|dispatchEvent|No|无法兼容|
+|dispatchEvent|No|无法兼容NativeWorker的createEvent|
 
 例子:
 ```html
