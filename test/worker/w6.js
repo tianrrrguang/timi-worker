@@ -1,0 +1,1 @@
+console.debug('[线程]进入TimiWorker');

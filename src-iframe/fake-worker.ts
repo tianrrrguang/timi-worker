@@ -10,9 +10,11 @@ export class FakeWorker {
     private iframe: any = null;
     private _stat: Stat = Stat.IDLE;
     private msgQueue: any[] = [];
+    private errorQueue: any[] = [];
     private uuid: string = uuid();
     private _onmessage: Function = (() => { });
     private _messages: Function[] = [];
+    private _onerror: any = null;
 
     get stat() { return this._stat; }
     set stat(val) {
@@ -30,6 +32,14 @@ export class FakeWorker {
 
     set onmessage(val) {
         this._onmessage = val;
+    }
+
+    set onerror(val) {
+        this._onerror = val;
+        if( this.errorQueue.length ){
+            this.errorQueue = [];
+            this.fireError();
+        }
     }
 
     postMessage(msg: any): void {
@@ -69,6 +79,10 @@ export class FakeWorker {
                 this.stat = Stat.LOADING;
                 return;
             }
+            if (evt.data.error) {
+                this.fireError();
+                return;
+            }
             this._onmessage(evt.data);
             this._messages.forEach((cb) => {
                 cb(evt.data);
@@ -94,6 +108,7 @@ export class FakeWorker {
     }
 
     private asyncLoadTxt(path: string, success: Function, fail: Function = (() => { })): void {
+        const self = this;
         const xhr = <any>(new XMLHttpRequest());
         xhr.responseType = "text";
         xhr.open('GET', path, true);
@@ -102,15 +117,17 @@ export class FakeWorker {
                 if (this.status == 200 || this.status == 304) {
                     success(this.responseText);
                 }
+                else if( this.status == 404 ){
+                    self.fireError();
+                }
             }
         };
         xhr.ontimeout = function (e) {
-
+            self.fireError();
         };
         xhr.onerror = function (e) {
-
+            self.fireError();
         };
-
         //发送数据
         xhr.send(null);
     }
@@ -119,6 +136,15 @@ export class FakeWorker {
         this.msgQueue.forEach((msg) => {
             this.postMessage(msg);
         });
+    }
+
+    private fireError(): void {
+        if( this._onerror ){
+            this._onerror();
+        }
+        else{
+            this.errorQueue.push(1);
+        }
     }
 
 }
