@@ -61,6 +61,17 @@ export class FakeWorker {
         }
     }
 
+    removeEventListener(name, callback): void {
+        switch (name) {
+            case 'message':
+                this.removeUnitFromList(this._messages, callback);
+                break;
+            case 'error':
+                this.removeUnitFromList(this._errors, callback);
+                break;
+        }
+    }
+
     terminate(): void {
         document.body.removeChild(this.iframe);
     }
@@ -156,6 +167,16 @@ export class FakeWorker {
         }
         else {
             this.errorQueue.push(1);
+        }
+    }
+
+    private removeUnitFromList(list: any[], unit: any): void {
+        for (let i = 0; i < list.length; i++) {
+            const item = list[i];
+            if (item == unit) {
+                list.splice(i, 1);
+                return;
+            }
         }
     }
 

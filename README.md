@@ -11,8 +11,8 @@ WebWorker兼容垫片
 |onerror|Yes|Web Worker文件加载错误, Dedicated Worker执行错误, importScripts加载错误时响应|
 |terminate|Yes||
 |addEventListener|Yes|message, error|
-|removeEventListener|No||
-|dispatchEvent|No||
+|removeEventListener|Yes||
+|dispatchEvent|No|无法兼容|
 
 例子:
 ```html

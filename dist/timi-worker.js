@@ -230,6 +230,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	                break;
 	        }
 	    };
+	    FakeWorker.prototype.removeEventListener = function (name, callback) {
+	        switch (name) {
+	            case 'message':
+	                this.removeUnitFromList(this._messages, callback);
+	                break;
+	            case 'error':
+	                this.removeUnitFromList(this._errors, callback);
+	                break;
+	        }
+	    };
 	    FakeWorker.prototype.terminate = function () {
 	        document.body.removeChild(this.iframe);
 	    };
@@ -322,6 +332,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        else {
 	            this.errorQueue.push(1);
+	        }
+	    };
+	    FakeWorker.prototype.removeUnitFromList = function (list, unit) {
+	        for (var i = 0; i < list.length; i++) {
+	            var item = list[i];
+	            if (item == unit) {
+	                list.splice(i, 1);
+	                return;
+	            }
 	        }
 	    };
 	    return FakeWorker;
