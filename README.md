@@ -13,6 +13,7 @@ WebWorker兼容垫片
 |addEventListener|Yes|message|
 |removeEventListener|No||
 |dispatchEvent|No||
+
 例子:
 ```html
 <!-- 方式1，通过script使用 -->
@@ -43,10 +44,13 @@ w.terminate();
 |postMessage|Yes||
 |onmessage|Yes||
 |onerror|Yes||
-|addEventListener|Yes|message|
-|removeEventListener|No||
-|dispatchEvent|No||
+|addEventListener|Yes|message, error|
+|removeEventListener|Yes||
+|dispatchEvent|Yes|需测试|
 |close|No||
+|self|Yes|Dedicated Worker Context|
+|TimiWorker|No|嵌套TimiWorker|
+
 例子:
 ```javascript
 //直接importScripts时请使用字符串字面量，勿使用变量

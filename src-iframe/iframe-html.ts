@@ -106,6 +106,11 @@ window.importScripts = function(){
         }
     }
 };
+//self重写
+try{
+    window.self = window;
+}catch(error){}
+
 
 </script>
 ${imports}
