@@ -12,14 +12,11 @@ export class FakeWorker {
     private msgQueue: any[] = [];
     private uuid: string = uuid();
     private _onmessage: Function = (() => { });
+    private _messages: Function[] = [];
 
     get stat() { return this._stat; }
     set stat(val) {
         this._stat = val;
-    }
-
-    set onmessage(val) {
-        this._onmessage = val;
     }
 
     constructor(jspath) {
@@ -30,11 +27,23 @@ export class FakeWorker {
         this.loadJsCode();
     }
 
+    set onmessage(val) {
+        this._onmessage = val;
+    }
+
     postMessage(msg: any): void {
         if (this.stat == Stat.READY)
             this.iframe.contentWindow.postMessage(msg, '*');
         else
             this.msgQueue.push(msg);
+    }
+
+    addEventListener(name, cb): void {
+        switch(name){
+            case 'message':
+                this._messages.push(cb);
+                break;
+        }
     }
 
     terminate(): void {
@@ -47,6 +56,9 @@ export class FakeWorker {
                 return;
             }
             this._onmessage(evt.data);
+            this._messages.forEach((cb)=>{
+                cb(evt.data);
+            });
         }, false);
     }
 

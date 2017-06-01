@@ -169,6 +169,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.msgQueue = [];
 	        this.uuid = utils_1.uuid();
 	        this._onmessage = (function () { });
+	        this._messages = [];
 	        this.jspath = jspath;
 	        this.stat = declare_1.Stat.LOADING;
 	        this.bindMessageListener();
@@ -196,6 +197,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        else
 	            this.msgQueue.push(msg);
 	    };
+	    FakeWorker.prototype.addEventListener = function (name, cb) {
+	        switch (name) {
+	            case 'message':
+	                this._messages.push(cb);
+	                break;
+	        }
+	    };
 	    FakeWorker.prototype.terminate = function () {
 	        document.body.removeChild(this.iframe);
 	    };
@@ -206,6 +214,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	                return;
 	            }
 	            _this._onmessage(evt.data);
+	            _this._messages.forEach(function (cb) {
+	                cb(evt.data);
+	            });
 	        }, false);
 	    };
 	    FakeWorker.prototype.createIframeContext = function () {
