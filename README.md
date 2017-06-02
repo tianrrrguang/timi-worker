@@ -12,7 +12,7 @@ WebWorker兼容垫片
 |terminate|Yes||
 |addEventListener|Yes|message, error|
 |removeEventListener|Yes||
-|dispatchEvent|No|无法兼容NativeWorker的createEvent|
+|dispatchEvent|No|实现中|
 
 例子:
 ```html
@@ -49,7 +49,7 @@ w.terminate();
 |dispatchEvent|Yes||
 |close|Yes|[详见close说明](#close)|
 |self|Yes|Dedicated Worker Context|
-|TimiWorker|No|嵌套TimiWorker|
+|TimiWorker|No|嵌套TimiWorker，暂无法支持|
 
 例子:
 ```javascript
