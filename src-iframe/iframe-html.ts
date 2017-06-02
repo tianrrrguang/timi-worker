@@ -23,16 +23,16 @@ window._timi = {
     jspath: '${jspath}',
     importQueue: [],
     ready:  function(){
-        window.parent.postMessage({uuid: _timi.uuid, isReady: true},'*');
+        window.parent.postMessage('$$isReady','*');
     },
     loading: function(){
-        window.parent.postMessage({uuid: _timi.uuid, isLoading: true},'*');
+        window.parent.postMessage('$$isLoading','*');
     },
     error: function(){
-        window.parent.postMessage({uuid: _timi.uuid, error: true},'*');
+        window.parent.postMessage('$$error','*');
     },
     close: function(){
-        window.parent.postMessage({uuid: _timi.uuid, close: true},'*');
+        window.parent.postMessage('$$close','*');
     },
     resolve: function(from, to) {
         var arrFrom = from.split('/');
@@ -92,7 +92,7 @@ window.addEventListener('error', function(){
 //postMessage重写
 window.postMessageOrigin = window.postMessage;
 window.postMessage = function(msg){
-    window.parent.postMessage({uuid: _timi.uuid, data: msg},'*');
+    window.parent.postMessage(msg,'*');
 };
 //importScripts重写
 window.importScripts = function(){

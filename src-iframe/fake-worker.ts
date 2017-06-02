@@ -81,31 +81,32 @@ export class FakeWorker {
     }
 
     private bindMessageListener(): void {
-        window.addEventListener('message', (evt) => {
-            if (evt.data.uuid !== this.uuid) {
+        window.addEventListener('message', (evt: any) => {
+
+            if (evt.source._timi.uuid !== this.uuid) {
                 return;
             }
-            if (evt.data.isReady) {
+            if (evt.data == '$$isReady') {
                 this.stat = Stat.READY;
                 this.boardMsgQueue();
                 return;
             }
-            if (evt.data.isLoading) {
+            if (evt.data == '$$isLoading') {
                 this.stat = Stat.LOADING;
                 return;
             }
-            if (evt.data.error) {
+            if (evt.data == '$$error') {
                 this.fireError();
                 return;
             }
-            if (evt.data.close) {
+            if (evt.data == '$$close') {
                 this.stat = Stat.IDLE;
                 this.terminate();
                 return;
             }
-            this._onmessage(evt.data);
+            this._onmessage(evt);
             this._messages.forEach((cb) => {
-                cb(evt.data);
+                cb(evt);
             });
         }, false);
     }
