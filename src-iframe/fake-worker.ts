@@ -45,7 +45,7 @@ export class FakeWorker {
 
     postMessage(msg: any): void {
         if (this.stat == Stat.READY)
-            this.iframe.contentWindow.postMessage(msg, '*');
+            this.iframe.contentWindow.postMessageOrigin(msg, '*');
         else
             this.msgQueue.push(msg);
     }
@@ -118,12 +118,13 @@ export class FakeWorker {
     }
 
     private createIframeContext(list): void {
-        const iframe = this.iframe = document.createElement('iframe');
+        const iframe: any = this.iframe = document.createElement('iframe');
         iframe.style.width = '0px';
         iframe.style.height = '0px';
         iframe.style.display = 'none';
         iframe.setAttribute('uuid', this.uuid);
-        iframe.src = makeIframeHtml(this.uuid, this.jspath, list);
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+        iframe.srcdoc =  makeIframeHtml(this.uuid, this.jspath, list);
         document.body.appendChild(iframe);
     }
 
@@ -160,9 +161,9 @@ export class FakeWorker {
 
     private fireError(): void {
         if (this._onerror) {
-            this._onerror();
+            this._onerror({});
             this._errors.forEach((cb) => {
-                cb();
+                cb({});
             });
         }
         else {

@@ -12,5 +12,10 @@ function onMessage(evt){
 worker.addEventListener('message', onMessage);
 
 setTimeout(function(){
-    worker.removeEventListener('message', onMessage);
+    try{
+        worker.removeEventListener('message', onMessage);
+    }
+    catch(error){
+
+    }
 }, 5000);

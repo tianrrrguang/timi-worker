@@ -10,7 +10,7 @@ function importIt(importsList) {
 
 export const makeIframeHtml = function (uuid: string, jspath: string, importsList: string[] = []) {
     const [imports, cache] = importIt(importsList);
-    const str = `
+    return `
 <!DOCTYPE html>
 <html>
     <head></head>
@@ -90,6 +90,7 @@ window.addEventListener('error', function(){
     _timi.error();
 });
 //postMessage重写
+window.postMessageOrigin = window.postMessage;
 window.postMessage = function(msg){
     window.parent.postMessage({uuid: _timi.uuid, data: msg},'*');
 };
@@ -118,11 +119,9 @@ try{
     window.self = window;
 }catch(error){}
 
-
 </script>
 ${imports}
 <script src="${jspath}" onerror="_timi.error()"></script>
 <script>_timi.ready();</script>
 `;
-    return 'data:text/html;charset=utf-8,' + encodeURI(str);
 }
