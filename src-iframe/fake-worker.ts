@@ -80,35 +80,32 @@ export class FakeWorker {
         this.stat = Stat.LOADING;
     }
 
-    private bindMessageListener(): void {
-        window.addEventListener('message', (evt: any) => {
-
-            if (evt.source._timi.uuid !== this.uuid) {
-                return;
-            }
-            if (evt.data == '$$isReady') {
-                this.stat = Stat.READY;
-                this.boardMsgQueue();
-                return;
-            }
-            if (evt.data == '$$isLoading') {
-                this.stat = Stat.LOADING;
-                return;
-            }
-            if (evt.data == '$$error') {
-                this.fireError();
-                return;
-            }
-            if (evt.data == '$$close') {
-                this.stat = Stat.IDLE;
-                this.terminate();
-                return;
-            }
-            this._onmessage(evt);
-            this._messages.forEach((cb) => {
-                cb(evt);
-            });
-        }, false);
+    private bindMessageListener(msg): void {
+        if (!msg) {
+            return;
+        }
+        if (msg == '$$isReady') {
+            this.stat = Stat.READY;
+            this.boardMsgQueue();
+            return;
+        }
+        if (msg == '$$isLoading') {
+            this.stat = Stat.LOADING;
+            return;
+        }
+        if (msg == '$$error') {
+            this.fireError();
+            return;
+        }
+        if (msg == '$$close') {
+            this.stat = Stat.IDLE;
+            this.terminate();
+            return;
+        }
+        this._onmessage({data:msg});
+        this._messages.forEach((cb) => {
+            cb({data:msg});
+        });
     }
 
     private parseImportScripts(cb: Function): void {
@@ -125,7 +122,8 @@ export class FakeWorker {
         iframe.style.display = 'none';
         iframe.setAttribute('uuid', this.uuid);
         iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
-        iframe.srcdoc =  makeIframeHtml(this.uuid, this.jspath, list);
+        iframe.srcdoc = makeIframeHtml(this.uuid, this.jspath, list);
+        window[this.uuid] = this.bindMessageListener.bind(this);
         document.body.appendChild(iframe);
     }
 

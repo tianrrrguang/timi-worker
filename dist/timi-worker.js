@@ -246,35 +246,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	    FakeWorker.prototype.setLoading = function () {
 	        this.stat = declare_1.Stat.LOADING;
 	    };
-	    FakeWorker.prototype.bindMessageListener = function () {
-	        var _this = this;
-	        window.addEventListener('message', function (evt) {
-	            if (evt.source._timi.uuid !== _this.uuid) {
-	                return;
-	            }
-	            if (evt.data == '$$isReady') {
-	                _this.stat = declare_1.Stat.READY;
-	                _this.boardMsgQueue();
-	                return;
-	            }
-	            if (evt.data == '$$isLoading') {
-	                _this.stat = declare_1.Stat.LOADING;
-	                return;
-	            }
-	            if (evt.data == '$$error') {
-	                _this.fireError();
-	                return;
-	            }
-	            if (evt.data == '$$close') {
-	                _this.stat = declare_1.Stat.IDLE;
-	                _this.terminate();
-	                return;
-	            }
-	            _this._onmessage(evt);
-	            _this._messages.forEach(function (cb) {
-	                cb(evt);
-	            });
-	        }, false);
+	    FakeWorker.prototype.bindMessageListener = function (msg) {
+	        if (!msg) {
+	            return;
+	        }
+	        if (msg == '$$isReady') {
+	            this.stat = declare_1.Stat.READY;
+	            this.boardMsgQueue();
+	            return;
+	        }
+	        if (msg == '$$isLoading') {
+	            this.stat = declare_1.Stat.LOADING;
+	            return;
+	        }
+	        if (msg == '$$error') {
+	            this.fireError();
+	            return;
+	        }
+	        if (msg == '$$close') {
+	            this.stat = declare_1.Stat.IDLE;
+	            this.terminate();
+	            return;
+	        }
+	        this._onmessage({ data: msg });
+	        this._messages.forEach(function (cb) {
+	            cb({ data: msg });
+	        });
 	    };
 	    FakeWorker.prototype.parseImportScripts = function (cb) {
 	        var _this = this;
@@ -291,6 +288,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        iframe.setAttribute('uuid', this.uuid);
 	        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
 	        iframe.srcdoc = iframe_html_1.makeIframeHtml(this.uuid, this.jspath, list);
+	        window[this.uuid] = this.bindMessageListener.bind(this);
 	        document.body.appendChild(iframe);
 	    };
 	    FakeWorker.prototype.asyncLoadTxt = function (path, success, fail) {
@@ -366,7 +364,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.makeIframeHtml = function (uuid, jspath, importsList) {
 	    if (importsList === void 0) { importsList = []; }
 	    var _a = importIt(importsList), imports = _a[0], cache = _a[1];
-	    return "\n<!DOCTYPE html>\n<html>\n    <head></head>\n    <body></body>\n</html>\n<script>\nwindow._timi = {\n    importScriptsCache: " + JSON.stringify(cache) + ",\n    uuid: '" + uuid + "',\n    jspath: '" + jspath + "',\n    importQueue: [],\n    ready:  function(){\n        window.parent.postMessage('$$isReady','*');\n    },\n    loading: function(){\n        window.parent.postMessage('$$isLoading','*');\n    },\n    error: function(){\n        window.parent.postMessage('$$error','*');\n    },\n    close: function(){\n        window.parent.postMessage('$$close','*');\n    },\n    resolve: function(from, to) {\n        var arrFrom = from.split('/');\n        var arrTo = to.split('/');\n        var arrPath = [];\n        var prev = 1;\n        for(var i=0; i<arrTo.length; i++){\n            if( arrTo[i] == '..' ){\n                prev++;\n            }\n            else if( arrTo[i] == '.' ){\n                continue;\n            }\n            else{\n                arrPath.push(arrTo[i]);\n            }\n        }\n        arrFrom.length-=prev;\n        return arrFrom.join('/')+'/'+arrPath.join('/');\n    },\n    loopLoadScripts: function(){\n        _timi.loading();\n        if( window._importTimer ){\n            clearTimeout( window._importTimer);\n        }\n        window._importTimer = setTimeout(_timi.doLoopLoadScripts, 20);\n    },\n    doLoopLoadScripts: function(){\n        if(_timi.importQueue.length){\n            var js = _timi.importQueue.shift();\n            _timi.loadScripts(js, function(){\n                _timi.doLoopLoadScripts();\n            });\n        }\n        else{\n            _timi.ready();\n        }\n    },\n    loadScripts: function(js, cb){\n        var script = document.createElement(\"script\");\n        script.onload = function(){\n            _timi.importScriptsCache[js] = true;\n            cb();\n        };\n        script.onerror = function(){\n            _timi.error();\n        };\n        script.src = js;\n        document.body.appendChild(script);\n    }\n};\n\n//\u9519\u8BEF\u76D1\u542C\nwindow.addEventListener('error', function(){\n    _timi.error();\n});\n//postMessage\u91CD\u5199\nwindow.postMessageOrigin = window.postMessage;\nwindow.postMessage = function(msg){\n    window.parent.postMessage(msg,'*');\n};\n//importScripts\u91CD\u5199\nwindow.importScripts = function(){\n    var len = arguments.length;\n    var i = 0;\n    var list = [];\n    for(; i<len; i++){\n        var js = _timi.resolve(_timi.jspath, arguments[i]);\n        if( _timi.importScriptsCache[js] ){\n            // console.log(js+'\u5DF2\u52A0\u8F7D\u8FC7!');\n        }\n        else{\n            _timi.importQueue.push(js);\n            _timi.loopLoadScripts();\n        }\n    }\n};\n//close\u91CD\u5199\nwindow.close = function(){\n    _timi.close();\n};\n//self\u91CD\u5199\ntry{\n    window.self = window;\n}catch(error){}\n\n</script>\n" + imports + "\n<script src=\"" + jspath + "\" onerror=\"_timi.error()\"></script>\n<script>_timi.ready();</script>\n";
+	    return "\n<!DOCTYPE html>\n<html>\n    <head></head>\n    <body></body>\n</html>\n<script>\nwindow._timi = {\n    importScriptsCache: " + JSON.stringify(cache) + ",\n    uuid: '" + uuid + "',\n    jspath: '" + jspath + "',\n    importQueue: [],\n    ready:  function(){\n        window.parent[_timi.uuid]('$$isReady','*');\n    },\n    loading: function(){\n        window.parent[_timi.uuid]('$$isLoading','*');\n    },\n    error: function(){\n        window.parent[_timi.uuid]('$$error','*');\n    },\n    close: function(){\n        window.parent[_timi.uuid]('$$close','*');\n    },\n    resolve: function(from, to) {\n        var arrFrom = from.split('/');\n        var arrTo = to.split('/');\n        var arrPath = [];\n        var prev = 1;\n        for(var i=0; i<arrTo.length; i++){\n            if( arrTo[i] == '..' ){\n                prev++;\n            }\n            else if( arrTo[i] == '.' ){\n                continue;\n            }\n            else{\n                arrPath.push(arrTo[i]);\n            }\n        }\n        arrFrom.length-=prev;\n        return arrFrom.join('/')+'/'+arrPath.join('/');\n    },\n    loopLoadScripts: function(){\n        _timi.loading();\n        if( window._importTimer ){\n            clearTimeout( window._importTimer);\n        }\n        window._importTimer = setTimeout(_timi.doLoopLoadScripts, 20);\n    },\n    doLoopLoadScripts: function(){\n        if(_timi.importQueue.length){\n            var js = _timi.importQueue.shift();\n            _timi.loadScripts(js, function(){\n                _timi.doLoopLoadScripts();\n            });\n        }\n        else{\n            _timi.ready();\n        }\n    },\n    loadScripts: function(js, cb){\n        var script = document.createElement(\"script\");\n        script.onload = function(){\n            _timi.importScriptsCache[js] = true;\n            cb();\n        };\n        script.onerror = function(){\n            _timi.error();\n        };\n        script.src = js;\n        document.body.appendChild(script);\n    }\n};\n\n//\u9519\u8BEF\u76D1\u542C\nwindow.addEventListener('error', function(){\n    _timi.error();\n});\n//postMessage\u91CD\u5199\nwindow.postMessageOrigin = window.postMessage;\nwindow.postMessage = function(msg){\n    window.parent[_timi.uuid](msg);\n};\n//importScripts\u91CD\u5199\nwindow.importScripts = function(){\n    var len = arguments.length;\n    var i = 0;\n    var list = [];\n    for(; i<len; i++){\n        var js = _timi.resolve(_timi.jspath, arguments[i]);\n        if( _timi.importScriptsCache[js] ){\n            // console.log(js+'\u5DF2\u52A0\u8F7D\u8FC7!');\n        }\n        else{\n            _timi.importQueue.push(js);\n            _timi.loopLoadScripts();\n        }\n    }\n};\n//close\u91CD\u5199\nwindow.close = function(){\n    _timi.close();\n};\n//self\u91CD\u5199\ntry{\n    window.self = window;\n}catch(error){}\n\n</script>\n" + imports + "\n<script src=\"" + jspath + "\" onerror=\"_timi.error()\"></script>\n<script>_timi.ready();</script>\n";
 	};
 
 
